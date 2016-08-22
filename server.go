@@ -15,12 +15,21 @@ import (
 const timeStr string = "2006-Jan-02"
 
 type TemplateData struct {
-	Section       string
-	OverviewURL   string
-	RegressionURL string
-	MetersTotal   int
-	LapsTotal     int
-	TopTenLaps    []*Total
+	Section         string
+	OverviewURL     string
+	RegressionURL   string
+	DistributionURL string
+	Bucket          string
+	Total           *Total
+	Totals          []*Total
+}
+
+type ChartNotFound struct {
+	Name string
+}
+
+func (cnf ChartNotFound) Error() string {
+	return fmt.Sprintf("Chart %s not found", cnf.Name)
 }
 
 type BasicHandler func(http.ResponseWriter, *http.Request) error
@@ -31,7 +40,10 @@ func (fn BasicHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func HandleError(err error, w http.ResponseWriter) {
 	if err != nil {
-		switch err.Error() {
+		switch err.(type) {
+		case ChartNotFound:
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(err.Error()))
 		default:
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -62,24 +74,29 @@ func GetFilter(query url.Values) (Filter, error) {
 	return filter, nil
 }
 
+func GetBucket(query url.Values) string {
+	if query.Get("bucket") == "" {
+		return "month"
+	}
+	return query.Get("bucket")
+}
+
 func HandleHome(w http.ResponseWriter, r *http.Request) error {
 	query := r.URL.Query()
 	filter, err := GetFilter(query)
 	if err != nil {
 		return err
 	}
-	bucket := query.Get("bucket")
-	if bucket == "" {
-		bucket = "year"
-	}
+	bucket := GetBucket(query)
 	tmpl := template.Must(template.ParseFiles(StaticDir + "/index.html"))
 	return tmpl.Execute(w, &TemplateData{
-		Section:       "Overview",
-		MetersTotal:   database.Meters(filter),
-		TopTenLaps:    database.Aggr(filter, bucket),
-		LapsTotal:     len(database.Laps(filter)),
-		OverviewURL:   fmt.Sprintf("chart/overview?%s", query.Encode()),
-		RegressionURL: fmt.Sprintf("chart/regression?%s", query.Encode()),
+		Section:         "Overview",
+		Bucket:          bucket,
+		Total:           database.total,
+		Totals:          database.Totals(filter, bucket),
+		OverviewURL:     fmt.Sprintf("chart/overview?%s", query.Encode()),
+		RegressionURL:   fmt.Sprintf("chart/regression?%s", query.Encode()),
+		DistributionURL: fmt.Sprintf("chart/distribution?%s", query.Encode()),
 	})
 }
 
@@ -88,13 +105,21 @@ func HandleGraph(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	chart, err := GetChart(mux.Vars(r)["name"], filter)
-	if err != nil {
-		return err
+	name := mux.Vars(r)["name"]
+	var chart Chart
+	switch name {
+	case "overview":
+		chart = OverviewChart{Title: "Distance By Totals"}
+	case "regression":
+		chart = RegressionChart{}
+	case "distribution":
+		chart = DistributionChart{}
+	default:
+		return ChartNotFound{Name: name}
 	}
 	w.Header().Add("Content-Type", "image/svg+xml")
 	w.Header().Add("Vary", "Accept-Encoding")
-	canvas, err := chart.Canvas()
+	canvas, err := chart.Canvas(database.Totals(filter, GetBucket(r.URL.Query())))
 	if err != nil {
 		return err
 	}
