@@ -1,0 +1,35 @@
+{{define "content"}}
+<div class="row placeholders">
+  {{.QueryStr}}
+  <div class="col-xs-12 col-sm-4 placeholder">
+    <img src="" alt="..." class="img-responsive">
+  </div>
+  <div class="col-xs-12 col-sm-4 placeholder">
+    <img src="" alt="..." class="img-responsive">
+  </div>
+  <div class="col-xs-12 col-sm-4 placeholder">
+    <img src="" alt="..." class="img-responsive">
+  </div>
+</div>
+<div class="table-responsive">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Laps</th>
+        <th>Duration</th>
+        <th>Distance</th>
+      </tr>
+    </thead>
+    <tbody>
+    {{range .Activities}}
+      <tr>
+        <td><a href="/activity/{{.ID}}">{{.StartTime}}</a></td>
+        <td>{{.Laps | len}}</td>
+        <td>{{.Duration}}</td>
+        <td>{{.Distance}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+{{end}}

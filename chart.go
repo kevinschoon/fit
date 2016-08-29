@@ -3,37 +3,35 @@ package main
 import (
 	"github.com/gonum/plot"
 	"github.com/gonum/plot/plotter"
-	"github.com/gonum/plot/plotutil"
 	"github.com/gonum/plot/vg"
 	"github.com/gonum/plot/vg/draw"
 	"github.com/gonum/plot/vg/vgsvg"
-	"math/rand"
+	"time"
 )
 
-func Values(totals Totals) plotter.Values {
-	pts := make(plotter.Values, len(totals))
-	for i := range pts {
-		pts[i] = totals[i].Km()
+// DistanceOverTime returns a chart displaying daily distance totals
+func DistanceOverTime(data map[time.Time]float64) (*vgsvg.Canvas, error) {
+	plt, err := plot.New()
+	if err != nil {
+		return nil, err
 	}
-	return pts
-}
-
-func Names(totals Totals) []string {
-	names := make([]string, len(totals))
-	for i := range names {
-		names[i] = totals[i].Name()
+	plt.Title.Text = ""
+	plt.Y.Label.Text = "Y"
+	plt.X.Label.Text = "X"
+	plt.Add(plotter.NewGrid())
+	l, err := plotter.NewLine(lineData)
+	if err != nil {
+		panic(err)
 	}
-	return names
+	l.LineStyle.Width = vg.Points(1)
+	l.LineStyle.Dashes = []vg.Length{vg.Points(5), vg.Points(5)}
+	l.LineStyle.Color = color.RGBA{B: 255, A: 255}
+	canvas := vgsvg.New(5*vg.Inch, 5*vg.Inch)
+	plt.Draw(draw.New(canvas))
+	return canvas, nil
 }
 
-type Chart interface {
-	Canvas(Totals) (*vgsvg.Canvas, error)
-}
-
-type OverviewChart struct {
-	Title string
-}
-
+/*
 func (chart OverviewChart) Canvas(totals Totals) (*vgsvg.Canvas, error) {
 	plt, err := plot.New()
 	if err != nil {
@@ -44,7 +42,7 @@ func (chart OverviewChart) Canvas(totals Totals) (*vgsvg.Canvas, error) {
 	plt.X.Label.Text = "Time Period"
 	plt.NominalX(Names(totals)...)
 	plt.Add(plotter.NewGrid())
-	barChart, err := plotter.NewBarChart(Values(totals), vg.Points(10))
+	barChart, err := plotter.NewBarChart(Values(totals), vg.Points(1))
 	if err != nil {
 		return nil, err
 	}
@@ -53,55 +51,35 @@ func (chart OverviewChart) Canvas(totals Totals) (*vgsvg.Canvas, error) {
 	plt.Draw(draw.New(canvas))
 	return canvas, nil
 }
+*/
 
+/*
 type RegressionChart struct{}
 
 func (chart RegressionChart) Canvas(totals Totals) (*vgsvg.Canvas, error) {
-	// Get some data.
-	n, m := 5, 10
-	pts := make([]plotter.XYer, n)
-	for i := range pts {
-		xys := make(plotter.XYs, m)
-		pts[i] = xys
-		center := float64(i)
-		for j := range xys {
-			xys[j].X = center + (rand.Float64() - 0.5)
-			xys[j].Y = center + (rand.Float64() - 0.5)
-		}
-	}
-
 	plt, err := plot.New()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-
-	// Create two lines connecting points and error bars. For
-	// the first, each point is the mean x and y value and the
-	// error bars give the 95% confidence intervals.  For the
-	// second, each point is the median x and y value with the
-	// error bars showing the minimum and maximum values.
-	mean95, err := plotutil.NewErrorPoints(plotutil.MeanAndConf95, pts...)
+	pts := make(plotter.XYs, len(totals))
+	for i := range pts {
+		pts[i].X = totals[i].TotalTime
+		pts[i].Y = totals[i].Dist
+	}
+	s, err := plotter.NewScatter(pts)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	medMinMax, err := plotutil.NewErrorPoints(plotutil.MedianAndMinMax, pts...)
+	plt.Add(s)
+	l, err := plotter.NewLine(SeriesToXYs(totals.Predict()))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	plotutil.AddLinePoints(plt,
-		"mean and 95% confidence", mean95,
-		"median and minimum and maximum", medMinMax)
-	plotutil.AddErrorBars(plt, mean95, medMinMax)
-
-	// Add the points that are summarized by the error points.
-	plotutil.AddScatters(plt, pts[0], pts[1], pts[2], pts[3], pts[4])
-
+	plt.Add(l)
 	c := vgsvg.New(5*vg.Inch, 5*vg.Inch)
 	// Draw to the Canvas.
 	plt.Draw(draw.New(c))
-
 	return c, nil
-
 }
 
 type DistributionChart struct{}
@@ -124,7 +102,7 @@ func (chart DistributionChart) Canvas(totals Totals) (*vgsvg.Canvas, error) {
 	if err != nil {
 		panic(err)
 	}
-	p.Title.Text = "Horizontal box plots"
+	p.Title.Text = "Distribution"
 	p.X.Label.Text = "Values"
 
 	// Make horizontal boxes for our data and add
@@ -154,3 +132,4 @@ func (chart DistributionChart) Canvas(totals Totals) (*vgsvg.Canvas, error) {
 	p.Draw(draw.New(c))
 	return c, nil
 }
+*/
