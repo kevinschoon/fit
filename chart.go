@@ -6,27 +6,58 @@ import (
 	"github.com/gonum/plot/vg"
 	"github.com/gonum/plot/vg/draw"
 	"github.com/gonum/plot/vg/vgsvg"
-	"time"
+	"image/color"
 )
 
 // DistanceOverTime returns a chart displaying daily distance totals
-func DistanceOverTime(data map[time.Time]float64) (*vgsvg.Canvas, error) {
+func DistanceOverTime(data plotter.Valuer) (*vgsvg.Canvas, error) {
+	plt, err := plot.New()
+	if err != nil {
+		return nil, err
+	}
+	/*
+		plt.Title.Text = ""
+		plt.Y.Label.Text = "Distance (km)"
+		plt.X.Label.Text = ""
+		plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
+		l, err := plotter.NewLine(data)
+		if err != nil {
+			panic(err)
+		}
+		l.LineStyle.Width = vg.Points(1)
+		l.LineStyle.Color = color.RGBA{B: 255, A: 255}
+		plt.Add(l)
+	*/
+	bars, err := plotter.NewBarChart(data, vg.Points(1))
+	plt.Title.Text = "Distance Traveled"
+	plt.Y.Label.Text = "Distance (Km)"
+	plt.X.Label.Text = "Time"
+	//plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2016-01-02"}
+	plt.Add(plotter.NewGrid())
+	plt.Add(bars)
+	canvas := vgsvg.New(20*vg.Inch, 4*vg.Inch)
+	plt.Draw(draw.New(canvas))
+	return canvas, nil
+}
+
+func ChartXYs(data plotter.XYer) (*vgsvg.Canvas, error) {
 	plt, err := plot.New()
 	if err != nil {
 		return nil, err
 	}
 	plt.Title.Text = ""
-	plt.Y.Label.Text = "Y"
-	plt.X.Label.Text = "X"
-	plt.Add(plotter.NewGrid())
-	l, err := plotter.NewLine(lineData)
+	plt.Y.Label.Text = "Distance (km)"
+	plt.X.Label.Text = ""
+	plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
+	l, err := plotter.NewLine(data)
 	if err != nil {
 		panic(err)
 	}
 	l.LineStyle.Width = vg.Points(1)
-	l.LineStyle.Dashes = []vg.Length{vg.Points(5), vg.Points(5)}
 	l.LineStyle.Color = color.RGBA{B: 255, A: 255}
-	canvas := vgsvg.New(5*vg.Inch, 5*vg.Inch)
+	plt.Add(plotter.NewGrid())
+	plt.Add(l)
+	canvas := vgsvg.New(20*vg.Inch, 4*vg.Inch)
 	plt.Draw(draw.New(canvas))
 	return canvas, nil
 }

@@ -5,6 +5,13 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/kevinschoon/tcx"
+	"time"
+)
+
+const (
+	MaxItems int    = 100
+	dbTime   string = "2006-01-02"  // Date format for SQL query
+	qTime    string = "2006-Jan-02" // Date format URL query
 )
 
 var options *Options
@@ -55,8 +62,38 @@ func Activity(id uint, db *gorm.DB) (activity tcx.Activity) {
 			db.Where("lap_id = ?", lap.ID).Preload("Pt").Find(activity.Laps[i].Trk)
 		}
 	}
-	fmt.Println(activity.Laps[0].Trk)
 	return activity
+}
+
+func Activities(db *gorm.DB, fn func(*gorm.DB) *gorm.DB) (activities tcx.Acts, err error) {
+	var (
+		count int
+		last  int
+	)
+	fn(db).Model(&tcx.Activity{}).Count(&count)
+	for len(activities) < count { // TODO: Cleanup
+		if db.Error != nil {
+			return nil, db.Error
+		}
+		var results tcx.Acts
+		fn(db).Limit(MaxItems).Offset(last).Preload("Laps.Trk").Find(&results)
+		for _, result := range results {
+			activities = append(activities, result)
+		}
+		last += MaxItems
+	}
+	return activities, err
+}
+
+func TrackPoints(db *gorm.DB, fn func(*gorm.DB) *gorm.DB) (pts tcx.Trackpoints) {
+	fn(db).Find(&pts)
+	return pts
+}
+
+func Between(start, end time.Time, column string) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(fmt.Sprintf("%s >= ? AND %s <= ?", column, column), start.Format(dbTime), end.Format(dbTime))
+	}
 }
 
 /*
