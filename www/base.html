@@ -30,6 +30,40 @@
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav navbar-right">
+
+<li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Aggregation<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="#">Year</a></li>
+            <li><a href="#">Month</a></li>
+            <li><a href="#">Day</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="#">None</a></li>
+          </ul>
+        </li>
+
+<li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">All Acitivities<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            {{range .Sports}}
+            <li><a href="#">{{.}}</a></li>
+            {{end}}
+            <li role="separator" class="divider"></li>
+            <li><a href="#">All Activities</a></li>
+          </ul>
+        </li>
+
+<li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">This Week<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="#">This Week</a></li>
+            <li><a href="#">This Month</a></li>
+            <li><a href="#">This Year</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="#">All Data</a></li>
+          </ul>
+        </li>
+
             <li><a href="#">About</a></li>
           </ul>
         </div>

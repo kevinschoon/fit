@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/kevinschoon/tcx"
-	"time"
 )
 
 const (
@@ -71,12 +69,12 @@ func Activities(db *gorm.DB, fn func(*gorm.DB) *gorm.DB) (activities tcx.Acts, e
 		last  int
 	)
 	fn(db).Model(&tcx.Activity{}).Count(&count)
-	for len(activities) < count { // TODO: Cleanup
+	for len(activities) < count {
 		if db.Error != nil {
 			return nil, db.Error
 		}
 		var results tcx.Acts
-		fn(db).Limit(MaxItems).Offset(last).Preload("Laps.Trk").Find(&results)
+		fn(db).Limit(MaxItems).Offset(last).Preload("Laps.Trk.Pt").Find(&results)
 		for _, result := range results {
 			activities = append(activities, result)
 		}
@@ -85,15 +83,23 @@ func Activities(db *gorm.DB, fn func(*gorm.DB) *gorm.DB) (activities tcx.Acts, e
 	return activities, err
 }
 
-func TrackPoints(db *gorm.DB, fn func(*gorm.DB) *gorm.DB) (pts tcx.Trackpoints) {
+func Trackpoints(db *gorm.DB, fn func(*gorm.DB) *gorm.DB) (pts []tcx.Trackpoint) {
 	fn(db).Find(&pts)
 	return pts
 }
 
-func Between(start, end time.Time, column string) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where(fmt.Sprintf("%s >= ? AND %s <= ?", column, column), start.Format(dbTime), end.Format(dbTime))
+func Sports(db *gorm.DB) (sports []string, err error) {
+	rows, err := db.Raw("SELECT DISTINCT(sport) FROM activities").Rows()
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+	for rows.Next() {
+		var sport string
+		rows.Scan(&sport)
+		sports = append(sports, sport)
+	}
+	return sports, nil
 }
 
 /*

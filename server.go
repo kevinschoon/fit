@@ -17,31 +17,57 @@ import (
 
 const StaticDir string = "www"
 
+type Query struct {
+	Sport string
+	Last  string
+	Start time.Time
+	End   time.Time
+}
+
+func (q Query) Where(table string) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		switch table {
+		case "activities":
+			return db.Where("start_time >= ? AND start_time <= ? AND sport LIKE ?", q.Start.Format(dbTime), q.End.Format(dbTime), q.Sport)
+		default:
+			return db.Where("time >= ? AND time <= ?", q.Start.Format(dbTime), q.End.Format(dbTime))
+		}
+	}
+}
+
+// NewQuery returns a query object from an HTTP request
+func NewQuery(r *http.Request) (query Query) {
+	values := r.URL.Query()
+	query.Start, _ = time.Parse(qTime, values.Get("start"))
+	query.End, _ = time.Parse(qTime, values.Get("end"))
+	if query.Start.IsZero() || query.End.IsZero() {
+		query.End = time.Now()
+		query.Start = time.Date(query.End.Year(), query.End.Month(), query.End.Day()-7, 0, 0, 0, 0, time.UTC)
+		query.Last = values.Get("last")
+		if query.Last != "" {
+			switch query.Last {
+			case "week":
+			case "month":
+				query.Start = time.Date(query.End.Year(), query.End.Month()-1, query.End.Day(), 0, 0, 0, 0, time.UTC)
+			case "year":
+				query.Start = time.Date(query.End.Year()-1, query.End.Month(), query.End.Day(), 0, 0, 0, 0, time.UTC)
+			}
+		}
+	}
+	query.Sport = values.Get("sport")
+	if query.Sport == "" {
+		query.Sport = "%"
+	}
+	return query
+}
+
 type TemplateData struct {
 	Activities tcx.Acts
 	Activity   tcx.Activity
 	ChartURL   string
 	Lap        tcx.Lap
-}
-
-func StartEnd(r *http.Request) (start, end time.Time, err error) {
-	query := r.URL.Query()
-	s, e := query.Get("start"), query.Get("end")
-	if s != "" && e != "" {
-		start, err = time.Parse(qTime, s)
-		if err != nil {
-			return start, end, err
-		}
-		end, err = time.Parse(qTime, e)
-		if err != nil {
-			return start, end, err
-		}
-	} else {
-		end = time.Now()
-		start = time.Date(end.Year()-1, // Show last year of data by default
-			end.Month(), end.Day(), 0, 0, 0, 0, time.UTC)
-	}
-	return start, end, err
+	Sports     []string
+	Query      Query
 }
 
 func LoadTemplates(section string) (*template.Template, error) {
@@ -91,17 +117,20 @@ func HandleActivities(db *gorm.DB, w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	start, end, err := StartEnd(r)
+	query := NewQuery(r)
+	sports, err := Sports(db)
 	if err != nil {
 		return err
 	}
-	activities, err := Activities(db, Between(start, end, "start_time"))
+	activities, err := Activities(db, query.Where("activities"))
 	if err != nil {
 		return err
 	}
+	activities = RollUpActivities(activities, "day")
 	return tmpl.Execute(w, &TemplateData{
 		Activities: activities,
 		ChartURL:   fmt.Sprintf("/chart?%s", r.URL.RawQuery),
+		Sports:     sports,
 	})
 }
 
@@ -136,16 +165,20 @@ func HandleActivity(db *gorm.DB, w http.ResponseWriter, r *http.Request) error {
 	return tmpl.Execute(w, data)
 }
 
+func HandleTrackPoints(db *gorm.DB, w http.ResponseWriter, r *http.Request) error {
+	query := NewQuery(r)
+	pts := Trackpoints(db, query.Where("trackpoints"))
+	fmt.Println(pts)
+	return nil
+}
+
 func HandleChart(db *gorm.DB, w http.ResponseWriter, r *http.Request) error {
-	start, end, err := StartEnd(r)
+	query := NewQuery(r)
+	activities, err := Activities(db, query.Where("activities"))
 	if err != nil {
 		return err
 	}
-	activities, err := Activities(db, Between(start, end, "start_time"))
-	if err != nil {
-		return err
-	}
-	canvas, err := DistanceOverTime(activities)
+	canvas, err := DistanceOverTime(ActivityByDist(RollUpActivities(activities, "day")))
 	if err != nil {
 		return err
 	}
@@ -193,6 +226,7 @@ func RunServer(listenPattern string) {
 	router.HandleFunc("/static/dashboard.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, StaticDir+"/dashboard.css")
 	})
+	router.Handle("/data", BasicHandler(HandleTrackPoints))
 	router.Handle("/chart", BasicHandler(HandleChart))
 	router.Handle("/chart/{activity}", BasicHandler(HandleDetailsChart))
 	router.Handle("/chart/{activity}/lap/{lap}", BasicHandler(HandleDetailsChart))
