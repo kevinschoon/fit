@@ -41,6 +41,12 @@ func InitDB() {
 		&tcx.Trackpoint{}).Error)
 }
 
+func FromQuery(q Query) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("DATE(start_time) >= ? AND DATE(start_time) <= ? AND sport LIKE ?", q.Start.Format(dbTime), q.End.Format(dbTime), q.Sport)
+	}
+}
+
 func BulkUpsert(db *gorm.DB, activities []tcx.Activity) (err error) {
 	for _, activity := range activities {
 		db.Create(&activity)

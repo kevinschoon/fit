@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/kevinschoon/tcx"
+	"sort"
 	"time"
 )
 
@@ -16,6 +17,14 @@ func (dps Datapoints) Len() int {
 	return len(dps)
 }
 
+func (dps Datapoints) Less(i, j int) bool {
+	return dps[i].X < dps[j].X
+}
+
+func (dps Datapoints) Swap(i, j int) {
+	dps[i], dps[j] = dps[j], dps[i]
+}
+
 func (dps Datapoints) Value(i int) float64 {
 	return dps[i].Y
 }
@@ -24,7 +33,7 @@ func (dps Datapoints) XY(i int) (x, y float64) {
 	return dps[i].X, dps[i].Y
 }
 
-func ActivityByDist(acts []tcx.Activity) Datapoints {
+func ActivityByDist(acts tcx.Acts) Datapoints {
 	dps := make(Datapoints, len(acts))
 	for i, act := range acts {
 		dps[i] = Datapoint{X: float64(act.StartTime.Unix())}
@@ -32,10 +41,14 @@ func ActivityByDist(acts []tcx.Activity) Datapoints {
 			dps[i].Y += lap.Dist
 		}
 	}
+	//sort.Sort(dps)
 	return dps
 }
 
-func RollUpActivities(acts []tcx.Activity, precision string) []tcx.Activity {
+func RollUpActivities(acts tcx.Acts, precision string) tcx.Acts {
+	if precision == "none" {
+		return acts
+	}
 	buckets := make(map[int][]tcx.Activity)
 	for _, act := range acts {
 		key := TimeKey(act.StartTime, precision)
@@ -44,7 +57,7 @@ func RollUpActivities(acts []tcx.Activity, precision string) []tcx.Activity {
 		}
 		buckets[key] = append(buckets[key], act)
 	}
-	activities := make([]tcx.Activity, 0)
+	activities := tcx.Acts{}
 	for _, bucket := range buckets {
 		first := bucket[0]
 		if len(bucket) > 1 {
@@ -57,6 +70,7 @@ func RollUpActivities(acts []tcx.Activity, precision string) []tcx.Activity {
 		}
 		activities = append(activities, first)
 	}
+	sort.Sort(activities)
 	return activities
 }
 

@@ -34,33 +34,32 @@
 <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Aggregation<span class="caret"></span></a>
           <ul class="dropdown-menu">
-            <li><a href="#">Year</a></li>
-            <li><a href="#">Month</a></li>
-            <li><a href="#">Day</a></li>
+            <li><a href={{.Query.ByAggr "day"}}>Day</a></li>
+            <li><a href={{.Query.ByAggr "month"}}>Month</a></li>
+            <li><a href={{.Query.ByAggr "year"}}>Year</a></li>
             <li role="separator" class="divider"></li>
-            <li><a href="#">None</a></li>
+            <li><a href={{.Query.ByAggr "none"}}>None</a></li>
           </ul>
         </li>
 
 <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">All Acitivities<span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Sport<span class="caret"></span></a>
           <ul class="dropdown-menu">
+            {{ $f := . }}
             {{range .Sports}}
-            <li><a href="#">{{.}}</a></li>
+            <li><a href="{{$f.Query.BySport .}}">{{.}}</a></li>
             {{end}}
             <li role="separator" class="divider"></li>
-            <li><a href="#">All Activities</a></li>
+            <li><a href={{.Query.BySport "all"}}>All Sports</a></li>
           </ul>
         </li>
 
 <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">This Week<span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Time Range<span class="caret"></span></a>
           <ul class="dropdown-menu">
-            <li><a href="#">This Week</a></li>
-            <li><a href="#">This Month</a></li>
-            <li><a href="#">This Year</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href="#">All Data</a></li>
+            <li><a href={{.Query.ByRange "week"}}>This Week</a></li>
+            <li><a href={{.Query.ByRange "month"}}>This Month</a></li>
+            <li><a href={{.Query.ByRange "year"}}>This Year</a></li>
           </ul>
         </li>
 
@@ -69,6 +68,7 @@
         </div>
       </div>
     </nav>
+    {{.Query.URL}}
     {{ block "content" .}}{{end}}
     <!-- Bootstrap core JavaScript
     ================================================== -->

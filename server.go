@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	text "text/template"
@@ -17,46 +18,96 @@ import (
 
 const StaticDir string = "www"
 
+func ThisWeek(now time.Time) time.Time {
+	return now.AddDate(0, 0, -7)
+}
+
+func ThisMonth(now time.Time) time.Time {
+	return now.AddDate(0, -1, 0)
+}
+
+func ThisYear(now time.Time) time.Time {
+	return now.AddDate(-1, 0, 0)
+}
+
+func CopyURL(u *url.URL) url.URL {
+	return url.URL{
+		Scheme: u.Scheme,
+		Host:   u.Host,
+		Path:   u.Path,
+	}
+}
+
 type Query struct {
 	Sport string
-	Last  string
+	Aggr  string
+	URL   *url.URL
 	Start time.Time
 	End   time.Time
 }
 
-func (q Query) Where(table string) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		switch table {
-		case "activities":
-			return db.Where("start_time >= ? AND start_time <= ? AND sport LIKE ?", q.Start.Format(dbTime), q.End.Format(dbTime), q.Sport)
-		default:
-			return db.Where("time >= ? AND time <= ?", q.Start.Format(dbTime), q.End.Format(dbTime))
-		}
+func (q Query) ByRange(key string) string {
+	u := CopyURL(q.URL)
+	values := q.URL.Query()
+	now := time.Now()
+	values.Set("end", now.Format(qTime))
+	switch key {
+	case "week":
+		values.Set("start", ThisWeek(now).Format(qTime))
+	case "month":
+		values.Set("start", ThisMonth(now).Format(qTime))
+	case "year":
+		values.Set("start", ThisYear(now).Format(qTime))
 	}
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+
+func (q Query) ByTime(t time.Time) string {
+	u := CopyURL(q.URL)
+	values := q.URL.Query()
+	values.Set("end", t.Format(qTime))
+	values.Set("start", t.Format(qTime))
+	values.Set("aggr", "none")
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+
+func (q Query) BySport(key string) string {
+	u := CopyURL(q.URL)
+	values := q.URL.Query()
+	values.Set("sport", key)
+	if key == "all" {
+		values.Del("sport")
+	}
+	u.RawQuery = values.Encode()
+	return u.String()
+}
+
+func (q Query) ByAggr(key string) string {
+	u := CopyURL(q.URL)
+	values := q.URL.Query()
+	values.Set("aggr", key)
+	u.RawQuery = values.Encode()
+	return u.String()
 }
 
 // NewQuery returns a query object from an HTTP request
-func NewQuery(r *http.Request) (query Query) {
-	values := r.URL.Query()
-	query.Start, _ = time.Parse(qTime, values.Get("start"))
-	query.End, _ = time.Parse(qTime, values.Get("end"))
+func NewQuery(request *http.Request) (query Query) {
+	query.URL = request.URL
+	query.Start, _ = time.Parse(qTime, query.URL.Query().Get("start"))
+	query.End, _ = time.Parse(qTime, query.URL.Query().Get("end"))
 	if query.Start.IsZero() || query.End.IsZero() {
 		query.End = time.Now()
-		query.Start = time.Date(query.End.Year(), query.End.Month(), query.End.Day()-7, 0, 0, 0, 0, time.UTC)
-		query.Last = values.Get("last")
-		if query.Last != "" {
-			switch query.Last {
-			case "week":
-			case "month":
-				query.Start = time.Date(query.End.Year(), query.End.Month()-1, query.End.Day(), 0, 0, 0, 0, time.UTC)
-			case "year":
-				query.Start = time.Date(query.End.Year()-1, query.End.Month(), query.End.Day(), 0, 0, 0, 0, time.UTC)
-			}
-		}
+		query.Start = ThisMonth(query.End)
 	}
-	query.Sport = values.Get("sport")
+	query.Sport = query.URL.Query().Get("sport")
 	if query.Sport == "" {
 		query.Sport = "%"
+	}
+	query.Aggr = query.URL.Query().Get("aggr")
+	if query.Aggr == "" {
+		query.Aggr = "day"
 	}
 	return query
 }
@@ -122,15 +173,16 @@ func HandleActivities(db *gorm.DB, w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	activities, err := Activities(db, query.Where("activities"))
+	activities, err := Activities(db, FromQuery(query))
 	if err != nil {
 		return err
 	}
-	activities = RollUpActivities(activities, "day")
+	activities = RollUpActivities(activities, query.Aggr)
 	return tmpl.Execute(w, &TemplateData{
 		Activities: activities,
 		ChartURL:   fmt.Sprintf("/chart?%s", r.URL.RawQuery),
 		Sports:     sports,
+		Query:      query,
 	})
 }
 
@@ -165,20 +217,13 @@ func HandleActivity(db *gorm.DB, w http.ResponseWriter, r *http.Request) error {
 	return tmpl.Execute(w, data)
 }
 
-func HandleTrackPoints(db *gorm.DB, w http.ResponseWriter, r *http.Request) error {
-	query := NewQuery(r)
-	pts := Trackpoints(db, query.Where("trackpoints"))
-	fmt.Println(pts)
-	return nil
-}
-
 func HandleChart(db *gorm.DB, w http.ResponseWriter, r *http.Request) error {
 	query := NewQuery(r)
-	activities, err := Activities(db, query.Where("activities"))
+	activities, err := Activities(db, FromQuery(query))
 	if err != nil {
 		return err
 	}
-	canvas, err := DistanceOverTime(ActivityByDist(RollUpActivities(activities, "day")))
+	canvas, err := DistanceOverTime(ActivityByDist(RollUpActivities(activities, query.Aggr)))
 	if err != nil {
 		return err
 	}
@@ -226,7 +271,6 @@ func RunServer(listenPattern string) {
 	router.HandleFunc("/static/dashboard.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, StaticDir+"/dashboard.css")
 	})
-	router.Handle("/data", BasicHandler(HandleTrackPoints))
 	router.Handle("/chart", BasicHandler(HandleChart))
 	router.Handle("/chart/{activity}", BasicHandler(HandleDetailsChart))
 	router.Handle("/chart/{activity}/lap/{lap}", BasicHandler(HandleDetailsChart))

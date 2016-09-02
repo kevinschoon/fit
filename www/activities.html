@@ -19,9 +19,10 @@
       </tr>
     </thead>
     <tbody>
+    {{ $f := . }}
     {{range .Activities}}
       <tr>
-        <td><a href="/activity/{{.ID}}">{{.StartTime}}</a></td>
+        <td><a href={{ $f.Query.ByTime .StartTime }}>{{.StartTime}}</a> </td>
         <td>{{.Laps | len}}</td>
         <td>{{.Duration}}</td>
         <td>{{.Distance}}</td>
