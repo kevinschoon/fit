@@ -41,7 +41,7 @@ func ActivityByDist(acts tcx.Acts) Datapoints {
 			dps[i].Y += lap.Dist
 		}
 	}
-	//sort.Sort(dps)
+	sort.Sort(dps)
 	return dps
 }
 
@@ -70,7 +70,7 @@ func RollUpActivities(acts tcx.Acts, precision string) tcx.Acts {
 		}
 		activities = append(activities, first)
 	}
-	sort.Sort(activities)
+	sort.Sort(sort.Reverse(activities))
 	return activities
 }
 
