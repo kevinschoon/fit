@@ -3,6 +3,10 @@ body {
   padding-top: 50px;
 }
 
+.panel-body {
+  margin-top: 10px;
+  padding: 5px;
+}
 
 /*
  *  * Global add-ons
