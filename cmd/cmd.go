@@ -21,7 +21,7 @@ func Server(cmd *cli.Cmd) {
 	pattern := *cmd.StringOpt("pattern", ":8000", "IP and port pattern to listen on")
 	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to SQLite DB")
 	cmd.Action = func() {
-		_, err := database.New(dbPath, tcx.Loader{})
+		_, err := database.New(dbPath, tcx.TCX{})
 		FailOnErr(err)
 		server.RunServer(pattern, dbPath)
 	}
@@ -31,11 +31,11 @@ func Load(cmd *cli.Cmd) {
 	tcxPath := *cmd.StringOpt("t tcxPath", "Takeout/", "Path to your TCX Data")
 	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to SQLite DB")
 	cmd.Action = func() {
-		loader := tcx.Loader{}
-		db, err := database.New(dbPath, loader)
+		db, err := database.New(dbPath, tcx.TCX{})
 		FailOnErr(err)
-		FailOnErr(loader.FromDir(tcxPath))
-		FailOnErr(database.Write(db, loader))
+		data, err := tcx.FromDir(tcxPath)
+		FailOnErr(err)
+		FailOnErr(database.Write(db, data))
 	}
 }
 

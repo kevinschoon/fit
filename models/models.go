@@ -3,6 +3,7 @@ package models
 import "time"
 
 type Precision int
+type Key int
 
 const (
 	Days Precision = iota
@@ -11,28 +12,25 @@ const (
 	None
 )
 
-// Datapoint is a single pair of XY values
-type Datapoint struct {
-	X float64
-	Y float64
-}
-
-// Datapoints is an array of XY values
-type Datapoints []Datapoint
-
-func (dps Datapoints) Len() int {
-	return len(dps)
-}
-
-func (dps Datapoints) Value(i int) float64 {
-	return dps[i].Y
-}
-
-func (dps Datapoints) XY(i int) (x, y float64) {
-	return dps[i].X, dps[i].Y
-}
-
 type Value float64
+
+type XYs []struct{ X, Y float64 }
+
+func (xys XYs) Len() int {
+	return len(xys)
+}
+
+func (xys XYs) XY(i int) (float64, float64) {
+	return xys[i].X, xys[i].Y
+}
+
+func (xys XYs) Less(i, j int) bool {
+	return xys[i].X < xys[j].Y
+}
+
+func (xys XYs) Swap(i, j int) {
+	xys[i], xys[j] = xys[j], xys[i]
+}
 
 type Row struct {
 	Time   time.Time
@@ -89,8 +87,24 @@ func (rows Rows) RollUp(precision Precision) Rows {
 	return newRows
 }
 
-type Series interface {
-	Columns() []string
-	Rows() Rows
-	Pts(string) Datapoints // TODO: Change to concrete types (int)
+type Series struct {
+	Columns []string
+	Rows    Rows
+}
+
+func (series Series) Pts(y Key) XYs {
+	xys := make(XYs, len(series.Rows))
+	for i := range xys {
+		xys[i].X = float64(series.Rows[i].Time.Unix())
+		if len(series.Rows[i].Values) < int(y) {
+			panic("Invalid series index")
+		}
+		xys[i].Y = float64(series.Rows[i].Values[int(y)])
+	}
+	return xys
+}
+
+type Serieser interface {
+	Series() *Series
+	Types() []interface{}
 }

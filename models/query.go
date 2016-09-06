@@ -11,6 +11,7 @@ type Query struct {
 	Start     time.Time         // Starting time of the entry
 	End       time.Time         // Ending time of the entry
 	Precision Precision         // Level of precision (value rollup) to apply
+	Order     string            // Order of rows by time
 	Match     map[string]string // Optional value to match on
 }
 
@@ -33,5 +34,6 @@ func QueryFromURL(u *url.URL) Query {
 			query.Match[string(m[0])] = string(m[1])
 		}
 	}
+	query.Order = values.Get("order")
 	return query
 }

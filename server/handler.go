@@ -14,19 +14,19 @@ import (
 
 type SeriesHandler struct {
 	dbPath string
-	handle func(models.Series, http.ResponseWriter, *http.Request) error
+	handle func(*models.Series, http.ResponseWriter, *http.Request) error
 }
 
 func (handler SeriesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	loader := tcx.Loader{} // TODO Switch out for dynamic types
-	db, err := database.New(handler.dbPath, loader)
+	t := tcx.TCX{} // TODO Switch out for dynamic types
+	db, err := database.New(handler.dbPath, t)
 	if err != nil {
 		handler.HandleError(nil, err, w)
 		return
 	}
 	defer db.Close()
 	query := models.QueryFromURL(r.URL)
-	series, err := database.Read(db, query, loader)
+	series, err := database.Read(db, query, t)
 	if err != nil {
 		handler.HandleError(nil, err, w)
 		return
@@ -52,23 +52,23 @@ func (handler SeriesHandler) HandleError(db *gorm.DB, err error, w http.Response
 	}
 }
 
-func HandleActivities(series models.Series, w http.ResponseWriter, r *http.Request) error {
+func HandleActivities(series *models.Series, w http.ResponseWriter, r *http.Request) error {
 	tmpl, data, err := LoadTemplate(r)
 	if err != nil {
 		return err
 	}
-	data.Columns = series.Columns()
-	data.Rows = series.Rows()
+	data.Columns = series.Columns
+	data.Rows = series.Rows
 	return tmpl.Execute(w, data)
 }
 
-func HandleChart(series models.Series, w http.ResponseWriter, r *http.Request) error {
-	canvas, err := chart.New(series.Pts(""))
+func HandleChart(series *models.Series, w http.ResponseWriter, r *http.Request) error {
+	canvas, err := chart.New(series.Pts(tcx.Distance))
 	if err != nil {
 		return err
 	}
 	w.Header().Add("Content-Type", "image/png")
 	w.Header().Add("Vary", "Accept-Encoding")
 	_, err = canvas.WriteTo(w)
-	return err
+	return nil
 }
