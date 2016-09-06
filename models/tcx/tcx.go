@@ -1,4 +1,4 @@
-package database
+package tcx
 
 import (
 	"fmt"
@@ -49,6 +49,10 @@ type TCXLoader struct {
 	tcxdbs []*tcx.TCXDB
 }
 
+func (t TCXLoader) Types() []interface{} {
+	return []interface{}{&tcx.Activity{}, &tcx.Lap{}, &tcx.Track{}, &tcx.Trackpoint{}}
+}
+
 func (t TCXLoader) Write(db *gorm.DB) error {
 	for _, tcxdb := range t.tcxdbs {
 		for _, activity := range tcxdb.Acts.Act {
@@ -60,7 +64,7 @@ func (t TCXLoader) Write(db *gorm.DB) error {
 	return nil
 }
 
-func (t TCXLoader) query(query Query) func(*gorm.DB) *gorm.DB {
+func (t TCXLoader) query(query models.Query) func(*gorm.DB) *gorm.DB {
 	qs := "DATE(start_time) >= ? AND DATE(start_time) <= ?"
 	values := []interface{}{
 		query.Start.Format("2006-01-02"),
@@ -82,7 +86,7 @@ func (t TCXLoader) query(query Query) func(*gorm.DB) *gorm.DB {
 	}
 }
 
-func (t TCXLoader) Read(db *gorm.DB, query Query) (models.Series, error) {
+func (t TCXLoader) Read(db *gorm.DB, query models.Query) (models.Series, error) {
 	var (
 		count int
 		last  int

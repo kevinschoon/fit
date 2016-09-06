@@ -6,6 +6,7 @@ import (
 	"github.com/kevinschoon/gofit/chart"
 	"github.com/kevinschoon/gofit/database"
 	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/gofit/models/tcx"
 
 	"net/http"
 	"text/template"
@@ -17,14 +18,14 @@ type SeriesHandler struct {
 }
 
 func (handler SeriesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	db, err := database.New(handler.dbPath)
+	loader := tcx.TCXLoader{} // TODO Switch out for dynamic types
+	db, err := database.New(handler.dbPath, loader)
 	if err != nil {
 		handler.HandleError(nil, err, w)
 		return
 	}
 	defer db.Close()
-	query := database.QueryFromURL(r.URL)
-	loader := database.TCXLoader{} // TODO Switch out for dynamic types
+	query := models.QueryFromURL(r.URL)
 	series, err := database.Read(db, query, loader)
 	if err != nil {
 		handler.HandleError(nil, err, w)

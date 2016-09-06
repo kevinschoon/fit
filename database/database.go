@@ -13,11 +13,16 @@ type Writer interface {
 
 // Reader implements functions to query and read from a SQL database
 type Reader interface {
-	Read(*gorm.DB, Query) (models.Series, error)
+	Read(*gorm.DB, models.Query) (models.Series, error)
+}
+
+// Migrater returns types for Gorm automigration
+type Migrater interface {
+	Types() []interface{}
 }
 
 // New creates a new gorm DB and automigrates the specified objects
-func New(path string, objs ...interface{}) (*gorm.DB, error) {
+func New(path string, migrater Migrater) (*gorm.DB, error) {
 	db, err := gorm.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
@@ -25,7 +30,7 @@ func New(path string, objs ...interface{}) (*gorm.DB, error) {
 	db.LogMode(true)
 	db.DB().SetMaxIdleConns(0)
 	db.DB().SetMaxOpenConns(0)
-	if err = db.AutoMigrate(objs...).Error; err != nil {
+	if err = db.AutoMigrate(migrater.Types()...).Error; err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -37,6 +42,6 @@ func Write(db *gorm.DB, writer Writer) error {
 }
 
 // Read executes the Query and Read functions
-func Read(db *gorm.DB, query Query, reader Reader) (models.Series, error) {
+func Read(db *gorm.DB, query models.Query, reader Reader) (models.Series, error) {
 	return reader.Read(db, query)
 }

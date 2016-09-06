@@ -1,7 +1,6 @@
-package database
+package models
 
 import (
-	"github.com/kevinschoon/gofit/models"
 	"net/url"
 	"strconv"
 	"time"
@@ -11,7 +10,7 @@ import (
 type Query struct {
 	Start     time.Time         // Starting time of the entry
 	End       time.Time         // Ending time of the entry
-	Precision models.Precision  // Level of precision (value rollup) to apply
+	Precision Precision         // Level of precision (value rollup) to apply
 	Match     map[string]string // Optional value to match on
 }
 
@@ -28,7 +27,7 @@ func QueryFromURL(u *url.URL) Query {
 		query.Start = query.End.AddDate(0, 0, -7) // Default to one week ago
 	}
 	val, _ := strconv.ParseInt(values.Get("precision"), 0, 64)
-	query.Precision = models.Precision(val)
+	query.Precision = Precision(val)
 	if m := values.Get("match"); m != "" {
 		if len(m) == 2 { // Only support a single criteria for the moment
 			query.Match[string(m[0])] = string(m[1])
