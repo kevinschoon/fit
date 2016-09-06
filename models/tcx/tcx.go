@@ -8,16 +8,17 @@ import (
 	"sort"
 )
 
-type TCXData struct {
+// Data satisfies the "series" model interface
+type Data struct {
 	acts      tcx.Acts
 	precision models.Precision
 }
 
-func (d TCXData) Columns() []string {
+func (d Data) Columns() []string {
 	return []string{"Laps", "Distance", "Duration"}
 }
 
-func (d TCXData) Rows() models.Rows {
+func (d Data) Rows() models.Rows {
 	values := make(models.Rows, len(d.acts))
 	for i, act := range d.acts {
 		values[i] = models.Row{
@@ -33,7 +34,7 @@ func (d TCXData) Rows() models.Rows {
 	return values
 }
 
-func (d TCXData) Pts(key string) models.Datapoints {
+func (d Data) Pts(key string) models.Datapoints {
 	rows := d.Rows()
 	sort.Sort(rows)
 	pts := make(models.Datapoints, len(rows))
@@ -44,16 +45,17 @@ func (d TCXData) Pts(key string) models.Datapoints {
 	return pts
 }
 
-type TCXLoader struct {
+// Loader satisfy database interfaces
+type Loader struct {
 	Path   string
 	tcxdbs []*tcx.TCXDB
 }
 
-func (t TCXLoader) Types() []interface{} {
+func (t Loader) Types() []interface{} {
 	return []interface{}{&tcx.Activity{}, &tcx.Lap{}, &tcx.Track{}, &tcx.Trackpoint{}}
 }
 
-func (t TCXLoader) Write(db *gorm.DB) error {
+func (t Loader) Write(db *gorm.DB) error {
 	for _, tcxdb := range t.tcxdbs {
 		for _, activity := range tcxdb.Acts.Act {
 			if err := db.Create(&activity).Error; err != nil {
@@ -64,7 +66,7 @@ func (t TCXLoader) Write(db *gorm.DB) error {
 	return nil
 }
 
-func (t TCXLoader) query(query models.Query) func(*gorm.DB) *gorm.DB {
+func (t Loader) query(query models.Query) func(*gorm.DB) *gorm.DB {
 	qs := "DATE(start_time) >= ? AND DATE(start_time) <= ?"
 	values := []interface{}{
 		query.Start.Format("2006-01-02"),
@@ -86,12 +88,12 @@ func (t TCXLoader) query(query models.Query) func(*gorm.DB) *gorm.DB {
 	}
 }
 
-func (t TCXLoader) Read(db *gorm.DB, query models.Query) (models.Series, error) {
+func (t Loader) Read(db *gorm.DB, query models.Query) (models.Series, error) {
 	var (
 		count int
 		last  int
 	)
-	data := TCXData{precision: query.Precision}
+	data := Data{precision: query.Precision}
 	fn := t.query(query)
 	fn(db).Model(&tcx.Activity{}).Count(&count)
 	for len(data.acts) < count {
@@ -108,8 +110,9 @@ func (t TCXLoader) Read(db *gorm.DB, query models.Query) (models.Series, error) 
 	return data, nil
 }
 
-func (t *TCXLoader) Load() error {
-	tcxDbs, err := tcx.ReadDir(t.Path)
+// FromDir loads TCX data from the given directory
+func (t *Loader) FromDir(path string) error {
+	tcxDbs, err := tcx.ReadDir(path)
 	if err != nil {
 		return err
 	}

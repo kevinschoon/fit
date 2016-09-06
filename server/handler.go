@@ -18,7 +18,7 @@ type SeriesHandler struct {
 }
 
 func (handler SeriesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	loader := tcx.TCXLoader{} // TODO Switch out for dynamic types
+	loader := tcx.Loader{} // TODO Switch out for dynamic types
 	db, err := database.New(handler.dbPath, loader)
 	if err != nil {
 		handler.HandleError(nil, err, w)
