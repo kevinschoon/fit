@@ -15,6 +15,12 @@ func RunServer(listenPattern, path string) {
 	router.HandleFunc("/static/dashboard.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, staticDir+"/dashboard.css")
 	})
+	router.HandleFunc("/static/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, staticDir+"/gopher.ico")
+	})
+	router.HandleFunc("/static/gopher.png", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, staticDir+"/gopher.png")
+	})
 	log.Printf("Fit server listening @ %s", listenPattern)
 	log.Fatal(http.ListenAndServe(listenPattern, handlers.CombinedLoggingHandler(os.Stdout, router)))
 }
