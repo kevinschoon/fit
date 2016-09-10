@@ -1,10 +1,12 @@
 package chart
 
 import (
+	"fmt"
 	"github.com/gonum/plot"
 	"github.com/gonum/plot/plotter"
 	"github.com/gonum/plot/vg"
 	"github.com/gonum/plot/vg/draw"
+	"github.com/kevinschoon/gofit/models"
 	"image/color"
 )
 
@@ -17,18 +19,18 @@ func getPlt(primary, secondary color.Color) (*plot.Plot, error) {
 	plt.BackgroundColor = secondary
 
 	plt.Title.Color = primary
-	plt.Title.Text = "Distance Traveled"
+	plt.Title.Text = "TITLE"
 	plt.Title.Font.Size = 0.5 * vg.Inch
 
 	plt.Y.Color = primary
-	plt.Y.Label.Text = "Distance (Km)"
+	plt.Y.Label.Text = "Y LABEL"
 	plt.Y.Label.Color = primary
 	plt.Y.Label.Font.Size = 0.3 * vg.Inch
 	plt.Y.Tick.Color = primary
 	plt.Y.Tick.Label.Font.Size = 0.2 * vg.Inch
 	plt.Y.Tick.Label.Color = primary
 
-	plt.X.Label.Text = "Time"
+	plt.X.Label.Text = "X LABEL"
 	plt.X.Color = primary
 	plt.X.Label.Color = primary
 	plt.X.Label.Font.Size = 0.3 * vg.Inch
@@ -39,10 +41,20 @@ func getPlt(primary, secondary color.Color) (*plot.Plot, error) {
 	return plt, nil
 }
 
+func getXYs(collection *models.Collection) plotter.XYer {
+	xys := make(plotter.XYs, collection.Len())
+	for i, series := range collection.Series {
+		fmt.Println(series)
+		xys[i].X = series.Get(i, models.Key(0)).Value
+		xys[i].Y = series.Get(i, models.Key(1)).Value
+	}
+	return xys
+}
+
 // DistanceOverTime returns a chart displaying daily distance totals
-func New(data plotter.XYer) (vg.CanvasWriterTo, error) {
+func New(collection *models.Collection) (vg.CanvasWriterTo, error) {
 	plt, err := getPlt(color.White, color.Black)
-	line, err := plotter.NewLine(data)
+	line, err := plotter.NewLine(getXYs(collection))
 	if err != nil {
 		panic(err)
 	}

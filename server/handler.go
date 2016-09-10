@@ -2,68 +2,56 @@ package server
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
+	"github.com/gorilla/mux"
 	"github.com/kevinschoon/gofit/chart"
 	"github.com/kevinschoon/gofit/database"
 	"github.com/kevinschoon/gofit/models"
-	"github.com/kevinschoon/gofit/models/tcx"
 
 	"net/http"
 	"text/template"
 )
 
-type SeriesHandler struct {
-	dbPath string
-	handle func(*models.Series, http.ResponseWriter, *http.Request) error
+type CollectionHandler struct {
+	db     *database.DB
+	handle func(*models.Collection, models.Query, http.ResponseWriter, *http.Request) error
 }
 
-func (handler SeriesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	t := tcx.TCX{} // TODO Switch out for dynamic types
-	db, err := database.New(handler.dbPath, t)
-	if err != nil {
-		handler.HandleError(nil, err, w)
-		return
-	}
-	defer db.Close()
+func (handler CollectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := models.QueryFromURL(r.URL)
-	series, err := database.Read(db, query, t)
+	collection, err := handler.db.Read(mux.Vars(r)["collection"], query.Start, query.End)
 	if err != nil {
-		handler.HandleError(nil, err, w)
+		handler.HandleError(err, w, r)
 		return
 	}
-	handler.HandleError(db, handler.handle(series, w, r), w)
+	handler.HandleError(handler.handle(collection, query, w, r), w, r)
 }
 
-func (handler SeriesHandler) HandleError(db *gorm.DB, err error, w http.ResponseWriter) {
+func (handler CollectionHandler) HandleError(err error, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("ERROR: ", err.Error())
 		switch err.(type) {
 		case template.ExecError:
 		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	} else {
-		if db != nil {
-			if db.Error != nil {
-				fmt.Println("DB Error:", err.Error())
+			switch err.Error() {
+			case database.ErrCollectionNotFound.Error():
+				http.NotFound(w, r)
+			default:
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}
 	}
 }
 
-func HandleActivities(series *models.Series, w http.ResponseWriter, r *http.Request) error {
-	tmpl, data, err := LoadTemplate(r)
+func Collection(collection *models.Collection, query models.Query, w http.ResponseWriter, r *http.Request) error {
+	tmpl, data, err := LoadTemplate(r, collection)
 	if err != nil {
 		return err
 	}
-	data.Columns = series.Columns
-	data.Rows = series.Rows
 	return tmpl.Execute(w, data)
 }
 
-func HandleChart(series *models.Series, w http.ResponseWriter, r *http.Request) error {
-	canvas, err := chart.New(series.Pts(tcx.Distance))
+func Chart(collection *models.Collection, query models.Query, w http.ResponseWriter, r *http.Request) error {
+	canvas, err := chart.New(collection)
 	if err != nil {
 		return err
 	}

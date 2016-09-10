@@ -9,48 +9,145 @@ const (
 	Days Precision = iota
 	Months
 	Years
-	None
 )
 
-type Value float64
-
-type XYs []struct{ X, Y float64 }
-
-func (xys XYs) Len() int {
-	return len(xys)
+type Value struct {
+	Name  string
+	Value float64
 }
 
-func (xys XYs) XY(i int) (float64, float64) {
-	return xys[i].X, xys[i].Y
-}
-
-func (xys XYs) Less(i, j int) bool {
-	return xys[i].X < xys[j].Y
-}
-
-func (xys XYs) Swap(i, j int) {
-	xys[i], xys[j] = xys[j], xys[i]
-}
-
-type Row struct {
+type Series struct {
+	index  int
 	Time   time.Time
-	Values []Value
+	Values [][]Value
 }
 
-type Rows []Row
-
-func (rows Rows) Len() int {
-	return len(rows)
+func (series Series) Len() int {
+	return len(series.Values)
 }
 
-func (rows Rows) Less(i, j int) bool {
-	return rows[i].Time.Unix() < rows[j].Time.Unix()
+func (series Series) Less(i, j int) bool {
+	return series.Values[i][series.index].Value < series.Values[j][series.index].Value
 }
 
-func (rows Rows) Swap(i, j int) {
-	rows[i], rows[j] = rows[j], rows[i]
+func (series Series) Swap(i, j int) {
+	series.Values[i], series.Values[j] = series.Values[j], series.Values[i]
 }
 
+func (series *Series) SortBy(k Key) {
+	series.index = int(k)
+}
+
+func (series Series) Get(i int, k Key) Value {
+	return series.Values[i][int(k)]
+}
+func (series Series) GetAll(i int) []Value {
+	return series.Values[i]
+}
+
+func (series *Series) Add(values []Value) {
+	series.Values = append(series.Values, values)
+}
+
+type Collection struct {
+	Series []*Series
+	Name   string
+}
+
+func (c Collection) Len() int {
+	return len(c.Series)
+}
+
+func (c Collection) Dump() *Series {
+	dump := &Series{}
+	for _, series := range c.Series {
+		for _, values := range series.Values {
+			dump.Values = append(dump.Values, values)
+		}
+	}
+	return dump
+}
+
+// Add enters a new series of values into the collection
+// By default values are aggregated and stored per second
+func (c *Collection) Add(start time.Time, values []Value) {
+	if len(c.Series) == 0 {
+		c.Series = []*Series{
+			&Series{
+				Time:   start,
+				Values: [][]Value{values},
+			},
+		}
+		return
+	}
+	if series := c.Find(start); series != nil {
+		series.Add(values)
+		//series.Values = append(series.Values, values)
+	} else {
+		c.Series = append(c.Series, &Series{
+			Time:   start,
+			Values: [][]Value{values},
+		})
+	}
+}
+
+// Find searches for a series matching the provided start time
+func (c *Collection) Find(start time.Time) *Series {
+	for _, series := range c.Series {
+		if series.Time.Unix() == start.Unix() {
+			return series
+		}
+	}
+	return nil
+}
+
+// Names returns value names in the collection of Series
+func (c *Collection) Names() (names []string) {
+	if c.Len() > 0 {
+		for _, value := range c.Series[0].GetAll(0) {
+			names = append(names, value.Name)
+		}
+	}
+	return names
+}
+
+// Rollup aggregates series by the specified precision
+/*
+func (c *Collection) RollUp(precision Precision) {
+	collection := &Collection{
+		Name: c.Name,
+	}
+	aggr := make(map[int][]*Series)
+	for _, series := range c.Series {
+		var key int
+		switch precision {
+		case Years:
+			key = series.Time.Year()
+		case Months:
+			key = (series.Time.Year() * 12) + int(series.Time.Month())
+		case Days:
+			key = (series.Time.Year() * 12) + (int(series.Time.Month()) * 31) + series.Time.Day()
+		}
+		if _, ok := aggr[key]; !ok {
+			aggr[key] = make([]*Series, 0)
+		}
+		aggr[key] = append(aggr[key], series)
+	}
+	for _, series := range aggr {
+		first := series[0]
+		if len(series) > 1 {
+			for _, series := range series[1:] {
+				for i, values := range series.Values {
+					first.Add(values)
+				}
+			}
+		}
+		collection.Add(first.Time, first.GetAll(0))
+	}
+	*c = collection
+}
+*/
+/*
 func (rows Rows) RollUp(precision Precision) Rows {
 	if precision == None {
 		return rows
@@ -86,25 +183,4 @@ func (rows Rows) RollUp(precision Precision) Rows {
 	}
 	return newRows
 }
-
-type Series struct {
-	Columns []string
-	Rows    Rows
-}
-
-func (series Series) Pts(y Key) XYs {
-	xys := make(XYs, len(series.Rows))
-	for i := range xys {
-		xys[i].X = float64(series.Rows[i].Time.Unix())
-		if len(series.Rows[i].Values) < int(y) {
-			panic("Invalid series index")
-		}
-		xys[i].Y = float64(series.Rows[i].Values[int(y)])
-	}
-	return xys
-}
-
-type Serieser interface {
-	Series() *Series
-	Types() []interface{}
-}
+*/

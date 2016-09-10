@@ -6,7 +6,6 @@ import (
 	"github.com/kevinschoon/gofit/database"
 	"github.com/kevinschoon/gofit/models/tcx"
 	"github.com/kevinschoon/gofit/server"
-	//"github.com/kevinschoon/tcx"
 	"os"
 )
 
@@ -19,29 +18,37 @@ func FailOnErr(err error) {
 
 func Server(cmd *cli.Cmd) {
 	pattern := *cmd.StringOpt("pattern", ":8000", "IP and port pattern to listen on")
-	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to SQLite DB")
+	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to BoltDB")
 	cmd.Action = func() {
-		_, err := database.New(dbPath, tcx.TCX{})
+		db, err := database.New(dbPath)
 		FailOnErr(err)
-		server.RunServer(pattern, dbPath)
+		server.RunServer(db, pattern)
 	}
 }
 
 func Load(cmd *cli.Cmd) {
-	tcxPath := *cmd.StringOpt("t tcxPath", "Takeout/", "Path to your TCX Data")
-	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to SQLite DB")
+	name := cmd.StringOpt("n name", "", "Name for this dataset")
+	dataType := cmd.StringOpt("t type", "", "Type of data to load")
+	dataPath := cmd.StringOpt("p path", "Takeout/", "Path to your raw dataset")
+	dbPath := cmd.StringOpt("d database", "/tmp/gofit.db", "Path to BoltDB")
 	cmd.Action = func() {
-		db, err := database.New(dbPath, tcx.TCX{})
+		db, err := database.New(*dbPath)
 		FailOnErr(err)
-		data, err := tcx.FromDir(tcxPath)
-		FailOnErr(err)
-		FailOnErr(database.Write(db, data))
+		fmt.Println(*name, *dataType, *dataPath, *dbPath)
+		switch *dataType {
+		case "tcx":
+			data, err := tcx.FromDir(*dataPath)
+			FailOnErr(err)
+			FailOnErr(db.Write(*name, data.Load()))
+		default:
+			FailOnErr(fmt.Errorf("Unknown datatype %s", *dataType))
+		}
 	}
 }
 
 func Run() {
 	app := cli.App("gofit", "GoFit!")
 	app.Command("server", "Run the GoFit web UI", Server)
-	app.Command("load", "Load TCX Data", Load)
+	app.Command("load", "Load New Data", Load)
 	app.Run(os.Args)
 }

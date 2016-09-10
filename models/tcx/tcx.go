@@ -1,8 +1,6 @@
 package tcx
 
 import (
-	"fmt"
-	"github.com/jinzhu/gorm"
 	"github.com/kevinschoon/gofit/models"
 	"github.com/kevinschoon/tcx"
 )
@@ -14,32 +12,46 @@ const (
 )
 
 type TCX struct {
-	acts tcx.Acts
+	Acts tcx.Acts
 }
 
-// Series implements models.Serieser
-func (t TCX) Series() *models.Series {
-	series := &models.Series{
-		Columns: []string{"Laps", "Distance", "Duration"},
-		Rows:    make(models.Rows, len(t.acts)),
+func (t TCX) Load() *models.Collection {
+	collection := &models.Collection{}
+	for _, act := range t.Acts {
+		collection.Add(act.StartTime, []models.Value{
+			models.Value{
+				Name:  "Laps",
+				Value: float64(len(act.Laps)),
+			},
+			models.Value{
+				Name:  "Dist",
+				Value: act.Distance(),
+			},
+			models.Value{
+				Name:  "Duration",
+				Value: act.Duration(),
+			},
+		})
 	}
-	for i, act := range t.acts {
-		series.Rows[i] = models.Row{
-			Time:   act.StartTime,
-			Values: make([]models.Value, 3),
+	return collection
+}
+
+// FromDir loads TCX data from a directory
+func FromDir(path string) (*TCX, error) {
+	tcxDbs, err := tcx.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	t := &TCX{}
+	for _, db := range tcxDbs {
+		for _, act := range db.Acts.Act {
+			t.Acts = append(t.Acts, act)
 		}
-		series.Rows[i].Values[0] = models.Value(len(act.Laps))
-		series.Rows[i].Values[1] = models.Value(act.Distance())
-		series.Rows[i].Values[2] = models.Value(act.Duration())
 	}
-	return series
+	return t, nil
 }
 
-// Types implements models.Serieser
-func (t TCX) Types() []interface{} {
-	return []interface{}{&tcx.Activity{}, &tcx.Lap{}, &tcx.Track{}, &tcx.Trackpoint{}}
-}
-
+/*
 // Write implements database.Writer
 func (t TCX) Write(db *gorm.DB) error {
 	for _, act := range t.acts {
@@ -72,20 +84,12 @@ func (t TCX) Read(db *gorm.DB, query models.Query) (models.Serieser, error) {
 	}
 	return t, db.Error
 }
+*/
 
-// FromDir loads TCX data from a directory
-func FromDir(path string) (*TCX, error) {
-	tcxDbs, err := tcx.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	t := &TCX{}
-	for _, db := range tcxDbs {
-		for _, act := range db.Acts.Act {
-			t.acts = append(t.acts, act)
-		}
-	}
-	return t, nil
+/*
+// Types implements models.Serieser
+func (t TCX) Types() []interface{} {
+	return []interface{}{&tcx.Activity{}, &tcx.Lap{}, &tcx.Track{}, &tcx.Trackpoint{}}
 }
 
 // getQuery returns a gorm-compatible query
@@ -95,22 +99,20 @@ func getQuery(query models.Query) func(*gorm.DB) *gorm.DB {
 		query.Start.Format("2006-01-02"),
 		query.End.Format("2006-01-02"),
 	}
-	if len(query.Match) == 1 {
-		for key, value := range query.Match {
-			switch key {
-			case "activity":
-				qs += fmt.Sprintf(" AND %s LIKE ?", key)
-				values = append(values, value)
-			default:
-				break // Column name must be verified since it cannot be escaped
-			}
+	for key, value := range query.Match {
+		switch key {
+		case "sport":
+			qs += fmt.Sprintf(" AND %s LIKE ?", key)
+			values = append(values, value)
+		default:
+			break // Column name must be verified since it cannot be escaped
 		}
 	}
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Preload("Laps.Trk.Pt").Where(qs, values...)
 	}
 }
-
+*/
 /*
 func (d Data) Columns() []string {
 	return []string{"Laps", "Distance", "Duration"}

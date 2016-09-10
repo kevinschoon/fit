@@ -8,7 +8,8 @@ import (
 
 // URLBuilder modifies the query string of an existing URL
 type URLBuilder struct {
-	URL *url.URL
+	URL        *url.URL // URL of the request
+	Collection string   // Name of the collection
 }
 
 // Copy copies the existing URL
@@ -25,7 +26,7 @@ func (u URLBuilder) Copy() *url.URL {
 func (u URLBuilder) Chart() string {
 	values := u.URL.Query()
 	copied := u.Copy()
-	copied.Path = "chart"
+	copied.Path = fmt.Sprintf("%s/chart", u.Collection)
 	copied.RawQuery = values.Encode()
 	return copied.String()
 }
@@ -78,5 +79,4 @@ func (u URLBuilder) ByMatch(key, value string) string {
 	values.Set("match", fmt.Sprintf("%s,%s", key, value))
 	copied.RawQuery = values.Encode()
 	return copied.String()
-
 }

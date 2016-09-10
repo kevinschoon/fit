@@ -1,99 +1,63 @@
 package database
 
 import (
-	"fmt"
-	"github.com/jinzhu/gorm"
+	t "github.com/kevinschoon/gofit/models/tcx"
+	"github.com/kevinschoon/tcx"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"testing"
+	"time"
 )
 
-// Obj is a test object that implements all required DB interfaces
-type Obj struct {
-	Name string
-	X    float64
-	Y    float64
-}
+var cleanup bool = false
 
-type Objs struct {
-	objs []Obj
-}
-
-func (objs Objs) Keys() []string {
-	return []string{"Name", "X", "Y"}
-}
-
-func (objs Objs) Values() [][]string {
-	values := make([][]string, len(objs.objs))
-	for i, obj := range objs.objs {
-		values[i] = make([]string, len(objs.Keys()))
-		values[i][0] = obj.Name
-		values[i][1] = fmt.Sprintf("%d", int(obj.X))
-		values[i][2] = fmt.Sprintf("%d", int(obj.Y))
+func getTCX(count int) *t.TCX {
+	t := &t.TCX{
+		Acts: make(tcx.Acts, count),
 	}
-	return values
-}
-
-func (objs Objs) Pts(key string) Datapoints {
-	pts := make(Datapoints, len(objs.objs))
-	for i, obj := range objs.objs {
-		pts[i].X = obj.X
-		pts[i].Y = obj.Y
-	}
-	return pts
-}
-
-func (objs Objs) Write(db *gorm.DB) error {
-	for _, obj := range objs.objs {
-		if err := db.Create(&obj).Error; err != nil {
-			return err
+	for x := 0; x < count; x++ {
+		t.Acts[x] = tcx.Activity{
+			StartTime: time.Now().AddDate(0, 0, -x),
+			Laps:      make([]tcx.Lap, 5),
+		}
+		for i := 0; i < 5; i++ {
+			t.Acts[x].Laps[i] = tcx.Lap{
+				TotalTime: rand.Float64(),
+				Dist:      rand.Float64(),
+			}
 		}
 	}
-	return nil
+	return t
 }
 
-func (objs Objs) Read(db *gorm.DB) (Series, error) {
-	if err := db.Find(&objs.objs).Error; err != nil {
-		return nil, err
-	}
-	return objs, nil
-}
-
-func (objs Objs) Query(Query) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("x > ?", 0.4)
-	}
-}
-
-func newDB(t *testing.T, values ...interface{}) *gorm.DB {
+func newDB(t *testing.T) (*DB, func()) {
 	f, err := ioutil.TempFile("/tmp", "gofit")
 	if err != nil {
 		t.Error(err)
 	}
-	f.Close()
-	db, err := New(f.Name(), values...)
-	if err != nil {
-		t.Error(err)
+	db, err := New(f.Name())
+	assert.NoError(t, err)
+	fn := func() {
+		db.Close()
+		if cleanup {
+			os.Remove(f.Name())
+		}
 	}
-	return db
+	return db, fn
 }
 
-func TestDB(t *testing.T) {
-	db := newDB(t, &Obj{})
-	objs := Objs{objs: []Obj{Obj{Name: "Hello", X: 0.5, Y: 1.5}}}
-	if err := Write(db, objs); err != nil {
-		t.Error(err)
-	}
-	series, err := Read(db, Query{}, Objs{})
-	if err != nil {
-		t.Error(err)
-	}
-	if len(series.Keys()) != 3 {
-		t.Errorf("Keys should be 3")
-	}
-	if len(series.Values()) != 1 {
-		t.Errorf("values should equal 1")
-	}
-	if len(series.Pts("")) != 1 {
-		t.Errorf("datapoints should equal 1")
-	}
+func TestDatabase(t *testing.T) {
+	db, cleanup := newDB(t)
+	defer cleanup()
+	collection := getTCX(1000).Load()
+	assert.NoError(t, db.Write("stuff", collection))
+	collection, err := db.Read("stuff", time.Time{}, time.Now())
+	assert.NoError(t, err)
+	assert.Equal(t, collection.Len(), 1000)
+}
+
+func init() {
+	rand.Seed(time.Now().Unix())
 }
