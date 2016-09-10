@@ -52,7 +52,7 @@ func Collection(collection *models.Collection, query models.Query, w http.Respon
 }
 
 func Chart(collection *models.Collection, query models.Query, w http.ResponseWriter, r *http.Request) error {
-	canvas, err := chart.New(collection)
+	canvas, err := chart.New(collection, query.X, query.Y)
 	if err != nil {
 		return err
 	}

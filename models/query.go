@@ -14,6 +14,8 @@ type Query struct {
 	End       time.Time         // Ending time of the entry
 	Precision Precision         // Level of precision (value rollup) to apply
 	Match     map[string]string // Optional value to match on
+	X         Key               // X axis
+	Y         Key               // Y axis
 }
 
 // QueryFromURL builds a database query from a URL query string
@@ -31,29 +33,12 @@ func QueryFromURL(u *url.URL) Query {
 	}
 	val, _ := strconv.ParseInt(values.Get("precision"), 0, 64)
 	query.Precision = Precision(val)
-
+	X, _ := strconv.ParseInt(values.Get("X"), 0, 64)
+	Y, _ := strconv.ParseInt(values.Get("Y"), 0, 64)
+	if X == 0 && Y == 0 {
+		Y = 1
+	}
+	query.X = Key(X)
+	query.Y = Key(Y)
 	return query
 }
-
-/*
-	if query.Start.IsZero() || query.End.IsZero() {
-		query.End = time.Now()
-		query.Start = query.End.AddDate(0, 0, -7) // Default to one week ago
-	}
-*/
-/*
-	if m := values.Get("match"); m != "" {
-		split := strings.Split(m, ",")
-		if len(split) == 2 { // TODO: Support multiple criteria
-			query.Match[split[0]] = split[1]
-		}
-	}
-
-	xval, _ := strconv.ParseInt(values.Get("X"), 0, 64)
-	yval, _ := strconv.ParseInt(values.Get("Y"), 0, 64)
-	query.X = Key(xval)
-	if yval == 0 {
-		yval++
-	}
-	query.Y = Key(yval)
-*/

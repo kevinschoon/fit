@@ -9,53 +9,64 @@ import (
 	"image/color"
 )
 
-func getPlt(primary, secondary color.Color) (*plot.Plot, error) {
+type PlotCfg struct {
+	PrimaryColor   color.Color
+	SecondaryColor color.Color
+	XLabel         string
+	YLabel         string
+	Title          string
+}
+
+func getPlt(cfg PlotCfg) (*plot.Plot, error) {
 	plt, err := plot.New()
 	if err != nil {
 		return nil, err
 	}
-	plt.Legend.Color = primary
-	plt.BackgroundColor = secondary
+	plt.Legend.Color = cfg.PrimaryColor
+	plt.BackgroundColor = cfg.SecondaryColor
 
-	plt.Title.Color = primary
-	plt.Title.Text = "TITLE"
+	plt.Title.Color = cfg.PrimaryColor
+	plt.Title.Text = cfg.Title
 	plt.Title.Font.Size = 0.5 * vg.Inch
 
-	plt.Y.Color = primary
-	plt.Y.Label.Text = "Y LABEL"
-	plt.Y.Label.Color = primary
+	plt.Y.Color = cfg.PrimaryColor
+	plt.Y.Label.Text = cfg.YLabel
+	plt.Y.Label.Color = cfg.PrimaryColor
 	plt.Y.Label.Font.Size = 0.3 * vg.Inch
-	plt.Y.Tick.Color = primary
+	plt.Y.Tick.Color = cfg.PrimaryColor
 	plt.Y.Tick.Label.Font.Size = 0.2 * vg.Inch
-	plt.Y.Tick.Label.Color = primary
+	plt.Y.Tick.Label.Color = cfg.PrimaryColor
 
-	plt.X.Label.Text = "X LABEL"
-	plt.X.Color = primary
-	plt.X.Label.Color = primary
+	plt.X.Label.Text = cfg.XLabel
+	plt.X.Color = cfg.PrimaryColor
+	plt.X.Label.Color = cfg.PrimaryColor
 	plt.X.Label.Font.Size = 0.3 * vg.Inch
-	plt.X.Tick.Color = primary
-	plt.X.Tick.Label.Color = primary
+	plt.X.Tick.Color = cfg.PrimaryColor
+	plt.X.Tick.Label.Color = cfg.PrimaryColor
 	plt.X.Tick.Label.Font.Size = 0.2 * vg.Inch
-	plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
+	//plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
 	return plt, nil
 }
 
-func getXYs(collection *models.Collection) plotter.XYer {
+func getXYs(collection *models.Collection, x, y models.Key) plotter.XYer {
 	xys := make(plotter.XYs, collection.Len())
 	for i, series := range collection.Series {
-		xys[i].X = series.Sum(models.Key(0))
-		xys[i].Y = series.Sum(models.Key(1))
+		xys[i].X = series.Sum(x)
+		xys[i].Y = series.Sum(y)
 	}
 	return xys
 }
 
 // DistanceOverTime returns a chart displaying daily distance totals
-func New(collection *models.Collection) (vg.CanvasWriterTo, error) {
-	plt, err := getPlt(color.White, color.Black)
-	line, err := plotter.NewLine(getXYs(collection))
-	if err != nil {
-		panic(err)
-	}
+func New(collection *models.Collection, x, y models.Key) (vg.CanvasWriterTo, error) {
+	plt, _ := getPlt(PlotCfg{
+		PrimaryColor:   color.White,
+		SecondaryColor: color.Black,
+		Title:          collection.Name,
+		YLabel:         collection.GetName(y),
+		XLabel:         collection.GetName(x),
+	})
+	line, _ := plotter.NewLine(getXYs(collection, x, y))
 	line.LineStyle.Color = color.White
 	line.LineStyle.Width = vg.Points(2)
 	plt.Add(plotter.NewGrid())

@@ -125,6 +125,15 @@ func (c *Collection) Names() (names []string) {
 	return names
 }
 
+// Name returns the name of a given Series key
+func (c *Collection) GetName(k Key) (name string) {
+	names := c.Names()
+	if int(k) <= len(names) {
+		name = names[int(k)]
+	}
+	return name
+}
+
 // Rollup aggregates series by the specified precision
 func (c *Collection) RollUp(precision Precision) {
 	collection := Collection{
