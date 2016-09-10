@@ -1,7 +1,6 @@
 package chart
 
 import (
-	"fmt"
 	"github.com/gonum/plot"
 	"github.com/gonum/plot/plotter"
 	"github.com/gonum/plot/vg"
@@ -44,9 +43,8 @@ func getPlt(primary, secondary color.Color) (*plot.Plot, error) {
 func getXYs(collection *models.Collection) plotter.XYer {
 	xys := make(plotter.XYs, collection.Len())
 	for i, series := range collection.Series {
-		fmt.Println(series)
-		xys[i].X = series.Get(i, models.Key(0)).Value
-		xys[i].Y = series.Get(i, models.Key(1)).Value
+		xys[i].X = series.Sum(models.Key(0))
+		xys[i].Y = series.Sum(models.Key(1))
 	}
 	return xys
 }

@@ -19,6 +19,7 @@ type CollectionHandler struct {
 func (handler CollectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	query := models.QueryFromURL(r.URL)
 	collection, err := handler.db.Read(mux.Vars(r)["collection"], query.Start, query.End)
+	collection.RollUp(query.Precision)
 	if err != nil {
 		handler.HandleError(err, w, r)
 		return

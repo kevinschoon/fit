@@ -46,6 +46,29 @@ func (series Series) GetAll(i int) []Value {
 	return series.Values[i]
 }
 
+func (series Series) Sum(k Key) (sum float64) {
+	for _, values := range series.Values {
+		if len(values) >= int(k) {
+			sum += values[int(k)].Value
+		}
+	}
+	return sum
+}
+
+func (series Series) SumAll() (sums []float64) {
+	if len(series.Values) > 0 {
+		sums = make([]float64, len(series.Values[0]))
+		for _, values := range series.Values {
+			for i, value := range values {
+				if len(sums) >= i {
+					sums[i] += value.Value
+				}
+			}
+		}
+	}
+	return sums
+}
+
 func (series *Series) Add(values []Value) {
 	series.Values = append(series.Values, values)
 }
@@ -136,41 +159,3 @@ func (c *Collection) RollUp(precision Precision) {
 	}
 	*c = collection
 }
-
-/*
-func (rows Rows) RollUp(precision Precision) Rows {
-	if precision == None {
-		return rows
-	}
-	buckets := make(map[int]Rows)
-	for _, row := range rows {
-		var key int
-		switch precision {
-		case Years:
-			key = row.Time.Year()
-		case Months:
-			key = (row.Time.Year() * 12) + int(row.Time.Month())
-		case Days:
-			key = (row.Time.Year() * 12) + (int(row.Time.Month()) * 31) + row.Time.Day()
-		}
-		if _, ok := buckets[key]; !ok {
-			buckets[key] = make(Rows, 0)
-		}
-		buckets[key] = append(buckets[key], row)
-	}
-	newRows := Rows{}
-	for _, bucket := range buckets {
-		first := bucket[0]
-		if len(bucket) > 1 {
-			bucket = bucket[1:]
-			for _, row := range bucket {
-				for i, value := range row.Values {
-					first.Values[i] += value
-				}
-			}
-		}
-		newRows = append(newRows, first)
-	}
-	return newRows
-}
-*/

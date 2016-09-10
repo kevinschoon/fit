@@ -22,10 +22,8 @@
     {{range .Collection.Series}}
       <tr>
         <td>{{.Time.Format "2006-Jan-02 15:04:05"}}</td>
-        {{range .Values}}
-          {{range .}}
-        <td>{{.Value}}</td>
-          {{end}}
+        {{range .SumAll}}
+        <td>{{.}}</td>
         {{end}}
       </tr>
     {{end}}
