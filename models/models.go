@@ -16,10 +16,7 @@ type Value struct {
 	Value float64
 }
 
-//type Values []Value
-//func (values Values) Get(i int) float64
-//func (values Values) GetAll() []float64
-
+// Series is a group of values aggregated by time
 type Series struct {
 	index  int
 	Time   time.Time
@@ -106,9 +103,8 @@ func (c *Collection) Names() (names []string) {
 }
 
 // Rollup aggregates series by the specified precision
-/*
 func (c *Collection) RollUp(precision Precision) {
-	collection := &Collection{
+	collection := Collection{
 		Name: c.Name,
 	}
 	aggr := make(map[int][]*Series)
@@ -131,16 +127,16 @@ func (c *Collection) RollUp(precision Precision) {
 		first := series[0]
 		if len(series) > 1 {
 			for _, series := range series[1:] {
-				for i, values := range series.Values {
+				for _, values := range series.Values {
 					first.Add(values)
 				}
 			}
 		}
-		collection.Add(first.Time, first.GetAll(0))
+		collection.Series = append(collection.Series, first)
 	}
 	*c = collection
 }
-*/
+
 /*
 func (rows Rows) RollUp(precision Precision) Rows {
 	if precision == None {

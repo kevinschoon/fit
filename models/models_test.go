@@ -78,8 +78,8 @@ func TestCollectionAdd(t *testing.T) {
 
 func TestCollectionRollup(t *testing.T) {
 	collection := &Collection{}
-	previous := time.Now()
-	for i := 0; i < 24; i++ {
+	previous := time.Date(2016, time.January, 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 23; i++ {
 		// Increase the month each iteration
 		previous = previous.AddDate(0, 1, 0)
 		collection.Add(previous, []Value{
@@ -91,11 +91,11 @@ func TestCollectionRollup(t *testing.T) {
 			},
 		})
 	}
-	assert.Equal(t, 24, collection.Len())
-	// Rollup the collection by years, 24 months
-	// should be aggregated into 2 years
-	//collection.RollUp(Years)
-	//assert.Equal(t, 2, collection.Len())
+	assert.Equal(t, 23, collection.Len())
+	// Rollup the collection by years, starting from January 1, 23 months
+	// should be aggregated into two year long series
+	collection.RollUp(Years)
+	assert.Equal(t, 2, collection.Len())
 }
 
 func init() {
