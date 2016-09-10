@@ -16,6 +16,10 @@ type Value struct {
 	Value float64
 }
 
+//type Values []Value
+//func (values Values) Get(i int) float64
+//func (values Values) GetAll() []float64
+
 type Series struct {
 	index  int
 	Time   time.Time
@@ -56,16 +60,6 @@ type Collection struct {
 
 func (c Collection) Len() int {
 	return len(c.Series)
-}
-
-func (c Collection) Dump() *Series {
-	dump := &Series{}
-	for _, series := range c.Series {
-		for _, values := range series.Values {
-			dump.Values = append(dump.Values, values)
-		}
-	}
-	return dump
 }
 
 // Add enters a new series of values into the collection
