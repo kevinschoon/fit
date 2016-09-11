@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jawher/mow.cli"
 	"github.com/kevinschoon/gofit/database"
+	"github.com/kevinschoon/gofit/models/csv"
 	"github.com/kevinschoon/gofit/models/tcx"
 	"github.com/kevinschoon/gofit/server"
 	"os"
@@ -38,6 +39,10 @@ func Load(cmd *cli.Cmd) {
 		switch *dataType {
 		case "tcx":
 			data, err := tcx.FromDir(*dataPath)
+			FailOnErr(err)
+			FailOnErr(db.Write(*name, data.Load()))
+		case "csv":
+			data, err := csv.FromFile(*dataPath)
 			FailOnErr(err)
 			FailOnErr(db.Write(*name, data.Load()))
 		default:
