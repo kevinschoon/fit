@@ -9,6 +9,7 @@ const (
 	Days Precision = iota
 	Months
 	Years
+	None
 )
 
 type Value struct {
@@ -48,8 +49,10 @@ func (series Series) GetAll(i int) []Value {
 
 func (series Series) Sum(k Key) (sum float64) {
 	for _, values := range series.Values {
-		if len(values) >= int(k) {
-			sum += values[int(k)].Value
+		if len(values) > 0 {
+			if len(values) >= int(k) {
+				sum += values[int(k)].Value
+			}
 		}
 	}
 	return sum
@@ -134,8 +137,29 @@ func (c *Collection) GetName(k Key) (name string) {
 	return name
 }
 
+// Flat flattens each Series of values into their own Series
+func (c *Collection) Flat() {
+	collection := Collection{
+		Name: c.Name,
+	}
+	for _, series := range c.Series {
+		for _, values := range series.Values {
+			collection.Series = append(collection.Series, &Series{
+				Values: [][]Value{
+					values,
+				},
+			})
+		}
+	}
+	*c = collection
+}
+
 // Rollup aggregates series by the specified precision
 func (c *Collection) RollUp(precision Precision) {
+	if precision == None {
+		c.Flat()
+		return
+	}
 	collection := Collection{
 		Name: c.Name,
 	}

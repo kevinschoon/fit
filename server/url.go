@@ -27,6 +27,7 @@ func (u URLBuilder) Chart() string {
 	values := u.URL.Query()
 	copied := u.Copy()
 	copied.Path = fmt.Sprintf("%s/chart", u.Collection)
+	fmt.Println(copied.Path)
 	copied.RawQuery = values.Encode()
 	return copied.String()
 }

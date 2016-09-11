@@ -11,6 +11,21 @@ import (
 	"text/template"
 )
 
+type CollectionsHandler struct {
+	db     *database.DB
+	handle func([]string, http.ResponseWriter, *http.Request) error
+}
+
+func (handler CollectionsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	collections, err := handler.db.Collections()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	if err = handler.handle(collections, w, r); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 type CollectionHandler struct {
 	db     *database.DB
 	handle func(*models.Collection, models.Query, http.ResponseWriter, *http.Request) error
@@ -44,7 +59,9 @@ func (handler CollectionHandler) HandleError(err error, w http.ResponseWriter, r
 }
 
 func Collection(collection *models.Collection, query models.Query, w http.ResponseWriter, r *http.Request) error {
-	tmpl, data, err := LoadTemplate(r, collection)
+	tmpl, data, err := LoadTemplate(r, &TemplateOptions{
+		Collection: collection,
+	})
 	if err != nil {
 		return err
 	}
@@ -60,4 +77,14 @@ func Chart(collection *models.Collection, query models.Query, w http.ResponseWri
 	w.Header().Add("Vary", "Accept-Encoding")
 	_, err = canvas.WriteTo(w)
 	return nil
+}
+
+func Collections(collections []string, w http.ResponseWriter, r *http.Request) error {
+	tmpl, data, err := LoadTemplate(r, &TemplateOptions{
+		Collections: collections,
+	})
+	if err != nil {
+		return err
+	}
+	return tmpl.Execute(w, data)
 }

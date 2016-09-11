@@ -67,6 +67,21 @@ func (db *DB) Read(name string, start, end time.Time) (*models.Collection, error
 	return collection, err
 }
 
+func (db *DB) Collections() ([]string, error) {
+	var collections []string
+	err := db.b.View(func(tx *bolt.Tx) error {
+		tx.ForEach(func(name []byte, _ *bolt.Bucket) error {
+			collections = append(collections, string(name))
+			return nil
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return collections, nil
+}
+
 func (db *DB) Close() {
 	db.b.Close()
 }

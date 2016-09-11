@@ -1,0 +1,16 @@
+{{define "collections"}}
+<div class="collections">
+<div class="row">
+  <div class="col-md-4"></div>
+  <div class="col-md-4">
+    <ul class="list-group">
+      <h3> Browse Collections </h3>
+    {{range .Collections}}
+    <li class="list-group-item"> <a href="/{{.}}">{{.}}</a></li>
+    {{end}}
+  </ul>
+  </div>
+  <div class="col-md-4"></div>
+</div>
+</div>
+{{end}}

@@ -36,7 +36,7 @@
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav navbar-right">
-
+            {{if .Collection}}
 <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Aggregation<span class="caret"></span></a>
           <ul class="dropdown-menu">
@@ -47,7 +47,9 @@
             <li><a href={{.URLBuilder.ByPrecision "3"}}>None</a></li>
           </ul>
         </li>
+        {{end}}
 
+        {{if .Collection}}
 <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Time Range<span class="caret"></span></a>
           <ul class="dropdown-menu">
@@ -56,6 +58,7 @@
             <li><a href={{.URLBuilder.ByRange "year"}}>This Year</a></li>
           </ul>
         </li>
+        {{end}}
       <li>
 <a href="#" role="button" data-toggle="modal" aria-haspopup="true" aria-expanded="false" data-target="#myModal">About</a>
           </li>
@@ -63,8 +66,12 @@
         </div>
       </div>
     </nav>
+    {{if .Collection}}
     {{ block "chart" .}}{{end}}
     {{ block "data" .}}{{end}}
+    {{else}}
+    {{ block "collections" .}}{{end}}
+    {{end}}
 
 <!-- Modal -->
 <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">

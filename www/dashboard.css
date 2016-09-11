@@ -8,6 +8,11 @@ body {
   padding: 5px;
 }
 
+.collections {
+  margin-top: 25px;
+  text-align: center;
+}
+
 /*
  *  * Global add-ons
  *   */

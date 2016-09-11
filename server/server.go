@@ -12,27 +12,39 @@ import (
 )
 
 const (
-	staticDir string = "www"
-	baseTmpl  string = staticDir + "/base.html"
-	chartTmpl string = staticDir + "/chart.html"
-	dataTmpl  string = staticDir + "/data.html"
+	staticDir       string = "www"
+	baseTmpl        string = staticDir + "/base.html"
+	chartTmpl       string = staticDir + "/chart.html"
+	dataTmpl        string = staticDir + "/data.html"
+	collectionsTmpl string = staticDir + "/collections.html"
 )
 
 type TemplateData struct {
-	Collection *models.Collection
-	URLBuilder *URLBuilder
+	Collection  *models.Collection
+	Collections []string
+	URLBuilder  *URLBuilder
+}
+
+type TemplateOptions struct {
+	Collection  *models.Collection
+	Collections []string
 }
 
 // LoadTemplates loads HTML template files
-func LoadTemplate(r *http.Request, collection *models.Collection) (*template.Template, *TemplateData, error) {
+func LoadTemplate(r *http.Request, options *TemplateOptions) (*template.Template, *TemplateData, error) {
 	data := &TemplateData{
-		Collection: collection,
 		URLBuilder: &URLBuilder{
-			URL:        r.URL,
-			Collection: collection.Name,
+			URL: r.URL,
 		},
 	}
-	template, err := template.ParseFiles(baseTmpl, chartTmpl, dataTmpl)
+	switch {
+	case options.Collection != nil:
+		data.Collection = options.Collection
+		data.URLBuilder.Collection = options.Collection.Name
+	case len(options.Collections) > 0:
+		data.Collections = options.Collections
+	}
+	template, err := template.ParseFiles(baseTmpl, chartTmpl, dataTmpl, collectionsTmpl)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -41,6 +53,7 @@ func LoadTemplate(r *http.Request, collection *models.Collection) (*template.Tem
 
 func RunServer(db *database.DB, pattern string) {
 	router := mux.NewRouter().StrictSlash(true)
+	router.Handle("/", CollectionsHandler{db: db, handle: Collections})
 	router.Handle("/{collection}", CollectionHandler{db: db, handle: Collection})
 	router.Handle("/{collection}/chart", CollectionHandler{db: db, handle: Chart})
 	router.HandleFunc("/static/dashboard.css", func(w http.ResponseWriter, r *http.Request) {
