@@ -11,38 +11,58 @@ import (
 	"text/template"
 )
 
-type CollectionsHandler struct {
-	db     *database.DB
-	handle func([]string, http.ResponseWriter, *http.Request) error
+const (
+	staticDir       string = "www"
+	baseTmpl        string = staticDir + "/base.html"
+	chartTmpl       string = staticDir + "/chart.html"
+	dataTmpl        string = staticDir + "/data.html"
+	panelTmpl       string = staticDir + "/panel.html"
+	collectionsTmpl string = staticDir + "/collections.html"
+)
+
+func LoadTemplate() (*template.Template, error) {
+	return template.ParseFiles(baseTmpl, chartTmpl, dataTmpl, panelTmpl, collectionsTmpl)
 }
 
-func (handler CollectionsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type Response struct {
+	Title       string
+	Query       *Query
+	Collection  *models.Collection
+	Collections []string
+	URLBuilder  *URLBuilder
+}
+
+type Handler struct {
+	db     *database.DB
+	handle func(http.ResponseWriter, *http.Request, *Response) error
+}
+
+func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	response := &Response{
+		Query: QueryFromURL(r.URL),
+		URLBuilder: &URLBuilder{
+			URL: r.URL,
+		},
+	}
 	collections, err := handler.db.Collections()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	if err = handler.handle(collections, w, r); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-type CollectionHandler struct {
-	db     *database.DB
-	handle func(*models.Collection, models.Query, http.ResponseWriter, *http.Request) error
-}
-
-func (handler CollectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	query := models.QueryFromURL(r.URL)
-	collection, err := handler.db.Read(mux.Vars(r)["collection"], query.Start, query.End)
-	collection.RollUp(query.Precision)
-	if err != nil {
-		handler.HandleError(err, w, r)
+		handler.Err(err, w, r)
 		return
 	}
-	handler.HandleError(handler.handle(collection, query, w, r), w, r)
+	response.Collections = collections
+	if name, ok := mux.Vars(r)["collection"]; ok {
+		response.URLBuilder.Collection = name
+		collection, err := handler.db.Read(name, response.Query.Start, response.Query.End)
+		if err != nil {
+			handler.Err(err, w, r)
+			return
+		}
+		response.Collection = collection
+	}
+	handler.Err(handler.handle(w, r, response), w, r)
 }
 
-func (handler CollectionHandler) HandleError(err error, w http.ResponseWriter, r *http.Request) {
+func (handler Handler) Err(err error, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("ERROR: ", err.Error())
 		switch err.(type) {
@@ -58,33 +78,21 @@ func (handler CollectionHandler) HandleError(err error, w http.ResponseWriter, r
 	}
 }
 
-func Collection(collection *models.Collection, query models.Query, w http.ResponseWriter, r *http.Request) error {
-	tmpl, data, err := LoadTemplate(r, &TemplateOptions{
-		Collection: collection,
-	})
-	if err != nil {
-		return err
-	}
-	return tmpl.Execute(w, data)
-}
-
-func Chart(collection *models.Collection, query models.Query, w http.ResponseWriter, r *http.Request) error {
-	canvas, err := chart.New(collection, query.X, query.Y)
+func Chart(w http.ResponseWriter, r *http.Request, response *Response) error {
+	canvas, err := chart.New(response.Collection, response.Query.X, response.Query.Y)
 	if err != nil {
 		return err
 	}
 	w.Header().Add("Content-Type", "image/png")
 	w.Header().Add("Vary", "Accept-Encoding")
 	_, err = canvas.WriteTo(w)
-	return nil
+	return err
 }
 
-func Collections(collections []string, w http.ResponseWriter, r *http.Request) error {
-	tmpl, data, err := LoadTemplate(r, &TemplateOptions{
-		Collections: collections,
-	})
+func RenderHome(w http.ResponseWriter, r *http.Request, response *Response) error {
+	tmpl, err := LoadTemplate()
 	if err != nil {
 		return err
 	}
-	return tmpl.Execute(w, data)
+	return tmpl.Execute(w, response)
 }
