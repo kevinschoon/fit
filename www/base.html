@@ -14,58 +14,13 @@
     <title>GoFit</title>
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/darkly/bootstrap.min.css">
-    <link rel="shortcut icon" href="/static/favicon.ico" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/css/bootstrap-datepicker3.standalone.css">
+    <!--<link rel="shortcut icon" href="/static/favicon.ico" />-->
 
-    <!-- Custom styles for this template -->
     <link href="/static/dashboard.css" rel="stylesheet">
   </head>
   <body>
-    <nav class="navbar navbar-inverse navbar-fixed-top">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-left" href="/">
-            <img height="60px" alt="Brand" src="/static/gopher.png">
-            GoFit
-          </a>
-        </div>
-        <div id="navbar" class="navbar-collapse collapse">
-          <ul class="nav navbar-nav navbar-right">
-            {{if .Collection}}
-<li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Aggregation<span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href={{.URLBuilder.ByPrecision "0"}}>Day</a></li>
-            <li><a href={{.URLBuilder.ByPrecision "1"}}>Month</a></li>
-            <li><a href={{.URLBuilder.ByPrecision "2"}}>Year</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href={{.URLBuilder.ByPrecision "3"}}>None</a></li>
-          </ul>
-        </li>
-        {{end}}
-
-        {{if .Collection}}
-<li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Time Range<span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href={{.URLBuilder.ByRange "week"}}>This Week</a></li>
-            <li><a href={{.URLBuilder.ByRange "month"}}>This Month</a></li>
-            <li><a href={{.URLBuilder.ByRange "year"}}>This Year</a></li>
-          </ul>
-        </li>
-        {{end}}
-      <li>
-<a href="#" role="button" data-toggle="modal" aria-haspopup="true" aria-expanded="false" data-target="#myModal">About</a>
-          </li>
-          </ul>
-        </div>
-      </div>
-    </nav>
+    {{ block "panel" .}}{{end}}
     {{if .Collection}}
     {{ block "chart" .}}{{end}}
     {{ block "data" .}}{{end}}
@@ -73,36 +28,38 @@
     {{ block "collections" .}}{{end}}
     {{end}}
 
-<!-- Modal -->
-<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-        <h4 class="modal-title" id="myModalLabel">GoFit 0.0.1</h4>
-      </div>
-      <div class="modal-body">
-        <h2> GoFit</h2>
-        <p>Distinctio ut praesentium sed est impedit. Eos illo laborum neque esse laboriosam dolor odio rerum. Eum laboriosam eos id repellendus. Dignissimos et incidunt dolorem magni veniam alias id qui. At et laudantium dolore quo qui voluptas qui.</p>
-<button type="button" class="btn btn-primary btn-sm">
-  <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <a href="https://github.com/kevinschoon/gofit">Github</a>
-</button>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+    <!-- Modal -->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title" id="myModalLabel">GoFit 0.0.1</h4>
+          </div>
+          <div class="modal-body">
+            <h2> GoFit</h2>
+            <p>Distinctio ut praesentium sed est impedit. Eos illo laborum neque esse laboriosam dolor odio rerum. Eum laboriosam eos id repellendus. Dignissimos et incidunt dolorem magni veniam alias id qui. At et laudantium dolore quo qui voluptas qui.</p>
+            <button type="button" class="btn btn-primary btn-sm">
+              <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <a href="https://github.com/kevinschoon/gofit">Github</a>
+            </button>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
     <!-- Bootstrap core JavaScript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-    <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
-<!-- Optional theme -->
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+      ================================================== -->
+      <!-- Placed at the end of the document so the pages load faster -->
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+      <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
 
-<!-- Latest compiled and minified JavaScript -->
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+      <!-- Latest compiled and minified JavaScript -->
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/js/bootstrap-datepicker.js"></script>
+      <script>
+$('#daterange .input-daterange').datepicker({});
+      </script>
   </body>
 </html>
