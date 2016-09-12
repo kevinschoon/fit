@@ -20,10 +20,11 @@ func FailOnErr(err error) {
 func Server(cmd *cli.Cmd) {
 	pattern := *cmd.StringOpt("pattern", ":8000", "IP and port pattern to listen on")
 	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to BoltDB")
+	static := *cmd.StringOpt("static", "./www", "Path to static assets")
 	cmd.Action = func() {
 		db, err := database.New(dbPath)
 		FailOnErr(err)
-		server.RunServer(db, pattern)
+		server.RunServer(db, pattern, static)
 	}
 }
 

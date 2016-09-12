@@ -20,21 +20,19 @@ const (
 	collectionsTmpl string = staticDir + "/collections.html"
 )
 
-func LoadTemplate() (*template.Template, error) {
-	return template.ParseFiles(baseTmpl, chartTmpl, dataTmpl, panelTmpl, collectionsTmpl)
-}
-
 type Response struct {
 	Title       string
 	Query       *Query
 	Collection  *models.Collection
 	Collections []string
 	URLBuilder  *URLBuilder
+	Templates   []string
 }
 
 type Handler struct {
-	db     *database.DB
-	handle func(http.ResponseWriter, *http.Request, *Response) error
+	db        *database.DB
+	handle    func(http.ResponseWriter, *http.Request, *Response) error
+	Templates []string
 }
 
 func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +41,7 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		URLBuilder: &URLBuilder{
 			URL: r.URL,
 		},
+		Templates: handler.Templates,
 	}
 	collections, err := handler.db.Collections()
 	if err != nil {
@@ -57,6 +56,7 @@ func (handler Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			handler.Err(err, w, r)
 			return
 		}
+		collection.RollUp(response.Query.Precision)
 		response.Collection = collection
 	}
 	handler.Err(handler.handle(w, r, response), w, r)
@@ -90,7 +90,7 @@ func Chart(w http.ResponseWriter, r *http.Request, response *Response) error {
 }
 
 func RenderHome(w http.ResponseWriter, r *http.Request, response *Response) error {
-	tmpl, err := LoadTemplate()
+	tmpl, err := template.ParseFiles(response.Templates...)
 	if err != nil {
 		return err
 	}
