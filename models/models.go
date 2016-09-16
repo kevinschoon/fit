@@ -1,194 +1,185 @@
 package models
 
 import "time"
+import "sort"
 
-type Precision int
-type Key int
+type Aggregation int
 
 const (
-	Days Precision = iota
+	// Aggregation represents the level of aggregation to apply to a collection of Series
+	Days Aggregation = iota
 	Months
 	Years
 	None
 )
 
-type Value struct {
-	Name  string
-	Value float64
+// Key is an identifier to represent a value within a series
+// Keys can be used to associate a value with a specific
+// type and to represent the index of a set of values
+type Key int
+
+// Value represents a single datapoint
+type Value float64
+
+func (value Value) Float64() float64 {
+	return float64(value)
 }
 
-// Series is a group of values aggregated by time
+func (value Value) Time() time.Time {
+	return time.Unix(int64(value), 64)
+}
+
+type Sortable []Value
+
+func (s Sortable) Len() int           { return len(s) }
+func (s Sortable) Less(i, j int) bool { return s[i] < s[j] }
+func (s Sortable) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// Values represents a collection of Value arrays
+type Values [][]Value
+
+// Series is an append-only collection of Values grouped by time
+// A series can apply different functions to the data combined within
 type Series struct {
+	values Values // Arbitrarily sized collection of values
 	index  int
-	Time   time.Time
-	Values [][]Value
-}
-
-func (series Series) Len() int {
-	return len(series.Values)
-}
-
-func (series Series) Less(i, j int) bool {
-	return series.Values[i][series.index].Value < series.Values[j][series.index].Value
-}
-
-func (series Series) Swap(i, j int) {
-	series.Values[i], series.Values[j] = series.Values[j], series.Values[i]
-}
-
-func (series *Series) SortBy(k Key) {
-	series.index = int(k)
-}
-
-func (series Series) Get(i int, k Key) Value {
-	return series.Values[i][int(k)]
-}
-func (series Series) GetAll(i int) []Value {
-	return series.Values[i]
-}
-
-func (series Series) Sum(k Key) (sum float64) {
-	for _, values := range series.Values {
-		if len(values) > 0 {
-			if len(values) >= int(k) {
-				sum += values[int(k)].Value
-			}
-		}
-	}
-	return sum
-}
-
-func (series Series) SumAll() (sums []float64) {
-	if len(series.Values) > 0 {
-		sums = make([]float64, len(series.Values[0]))
-		for _, values := range series.Values {
-			for i, value := range values {
-				if len(sums) >= i {
-					sums[i] += value.Value
-				}
-			}
-		}
-	}
-	return sums
-}
-
-func (series *Series) Add(values []Value) {
-	series.Values = append(series.Values, values)
-}
-
-type Collection struct {
-	Series []*Series
 	Name   string
+	Keys   map[string]Key
 }
 
-func (c Collection) Len() int {
-	return len(c.Series)
-}
+// Implements interface for sort.Sort
+func (s Series) Len() int           { return len(s.values) }
+func (s Series) Less(i, j int) bool { return s.values[i][0] < s.values[j][0] }
+func (s Series) Swap(i, j int)      { s.values[i], s.values[j] = s.values[j], s.values[i] }
 
-// Add enters a new series of values into the collection
-// By default values are aggregated and stored per second
-func (c *Collection) Add(start time.Time, values []Value) {
-	if len(c.Series) == 0 {
-		c.Series = []*Series{
-			&Series{
-				Time:   start,
-				Values: [][]Value{values},
-			},
+// Exists checks to see if values exist at a given index
+// optionally it checks if a key exists at said index
+func (series Series) Exists(i int, k Key, check bool) bool {
+	if len(series.values) >= i+1 { // Series exists at index i
+		if !check { // Not checking for key
+			return true
 		}
-		return
+	} else { // Series out of range
+		return false
 	}
-	if series := c.Find(start); series != nil {
-		series.Add(values)
-		//series.Values = append(series.Values, values)
+	if len(series.values[i]) >= int(k)+1 { // Key exists at series index i
+		return true
+	}
+	return false // Key does not exist at series index i
+}
+
+// Value returns the value for k at the given index
+// if the value exists, otherwise it returns 0
+// TODO: Rework to accept a key rather than string
+func (series Series) Value(i int, k string) Value {
+	if key, ok := series.Keys[k]; ok {
+		if series.Exists(i, key, true) {
+			return series.values[i][int(key)]
+		}
+	}
+	return Value(0) // Return zero values for missing data
+}
+
+// Values dumps all of the values for the given key
+func (series Series) Values(key Key) []Value {
+	values := make([]Value, len(series.values))
+	for i := 0; i < len(series.values); i++ {
+		if series.Exists(i, key, true) {
+			values[i] = series.values[i][int(key)]
+		} else {
+			values[i] = Value(0)
+		}
+	}
+	return values
+}
+
+// Start returns the time of the first value within the series
+func (series Series) Start() time.Time {
+	return time.Unix(int64(series.Value(0, "time")), 64)
+}
+
+// End returns the time of the last value within the series
+func (series Series) End() time.Time {
+	if len(series.values) >= 1 {
+		return time.Unix(int64(series.Value(len(series.values)-1, "time")), 64)
+	}
+	return series.Start()
+}
+
+// Add enters a new array of Value into the series
+func (series *Series) Add(start time.Time, values []Value) {
+	if start.IsZero() {
+		start = time.Now()
+	}
+	v := []Value{Value(start.Unix())}
+	for _, value := range values {
+		v = append(v, value)
+	}
+	series.values = append(series.values, v)
+}
+
+// Next is used to iterate over a series
+func (series *Series) Next() (values []Value) {
+	if series.Exists(series.index, Key(0), false) {
+		values = series.values[series.index]
+		series.index++ // TODO: Mutex
 	} else {
-		c.Series = append(c.Series, &Series{
-			Time:   start,
-			Values: [][]Value{values},
-		})
+		series.index = 0
 	}
+	return values
 }
 
-// Find searches for a series matching the provided start time
-func (c *Collection) Find(start time.Time) *Series {
-	for _, series := range c.Series {
-		if series.Time.Unix() == start.Unix() {
-			return series
-		}
-	}
-	return nil
-}
-
-// Names returns value names in the collection of Series
-func (c *Collection) Names() (names []string) {
-	if c.Len() > 0 {
-		for _, value := range c.Series[0].GetAll(0) {
-			names = append(names, value.Name)
-		}
-	}
-	return names
-}
-
-// Name returns the name of a given Series key
-func (c *Collection) GetName(k Key) (name string) {
-	names := c.Names()
-	if int(k) <= len(names) {
-		name = names[int(k)]
-	}
-	return name
-}
-
-// Flat flattens each Series of values into their own Series
-func (c *Collection) Flat() {
-	collection := Collection{
-		Name: c.Name,
-	}
-	for _, series := range c.Series {
-		for _, values := range series.Values {
-			collection.Series = append(collection.Series, &Series{
-				Values: [][]Value{
-					values,
-				},
-			})
-		}
-	}
-	*c = collection
-}
-
-// Rollup aggregates series by the specified precision
-func (c *Collection) RollUp(precision Precision) {
-	if precision == None {
-		c.Flat()
-		return
-	}
-	collection := Collection{
-		Name: c.Name,
-	}
-	aggr := make(map[int][]*Series)
-	for _, series := range c.Series {
-		var key int
-		switch precision {
-		case Years:
-			key = series.Time.Year()
-		case Months:
-			key = (series.Time.Year() * 12) + int(series.Time.Month())
-		case Days:
-			key = (series.Time.Year() * 12) + (int(series.Time.Month()) * 31) + series.Time.Day()
-		}
-		if _, ok := aggr[key]; !ok {
-			aggr[key] = make([]*Series, 0)
-		}
-		aggr[key] = append(aggr[key], series)
-	}
-	for _, series := range aggr {
-		first := series[0]
-		if len(series) > 1 {
-			for _, series := range series[1:] {
-				for _, values := range series.Values {
-					first.Add(values)
-				}
+// Resize takes an array of series and arranges
+// the underlying values based on the specified duration
+func Resize(input []*Series, aggr time.Duration) (output []*Series) {
+	var current *Series
+	for _, series := range input {
+		sort.Sort(series)
+		if len(output) == 0 {
+			current = &Series{
+				Keys:   series.Keys,
+				values: Values{series.Next()},
 			}
+			output = append(output, current)
 		}
-		collection.Series = append(collection.Series, first)
+		for values := series.Next(); values != nil; values = series.Next() {
+			duration := current.End().Sub(current.Start()) + values[0].Time().Sub(current.End())
+			if duration >= aggr {
+				current = &Series{
+					Keys: series.Keys,
+				}
+				output = append(output, current)
+			}
+			current.values = append(current.values, values)
+		}
 	}
-	*c = collection
+	return output
+}
+
+// New series creates a new Series
+func NewSeries(columns []string) *Series {
+	series := &Series{
+		Keys: map[string]Key{
+			"time": Key(0),
+		},
+	}
+	for i := 1; i < len(columns)+1; i++ {
+		if columns[i-1] == "time" {
+			series.Keys["_time"] = Key(i)
+			continue
+		}
+		series.Keys[columns[i-1]] = Key(i)
+	}
+	return series
+}
+
+// Copy performs a shallow copy of the given series
+func Copy(in *Series) *Series {
+	series := &Series{
+		Keys: make(map[string]Key),
+	}
+	for name, key := range in.Keys {
+		series.Keys[name] = Key(int(key))
+	}
+	return series
 }

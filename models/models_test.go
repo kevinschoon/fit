@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"sort"
@@ -10,92 +9,161 @@ import (
 )
 
 func TestSeriesSort(t *testing.T) {
-	series := &Series{}
-	series.Add([]Value{
-		Value{
-			Name:  "V1-0",
-			Value: 1.0,
-		},
-		Value{
-			Name:  "V1-1",
-			Value: 1.0,
-		},
-	})
-	series.Add([]Value{
-		Value{
-			Name:  "V2-0",
-			Value: 1.0,
-		},
-		Value{
-			Name:  "V2-1",
-			Value: 2.0,
-		},
-	})
-	assert.Equal(t, series.Len(), 2)
-	series.SortBy(Key(1))
+	series := NewSeries([]string{"V1", "V2"})
+	series.Add(time.Now().AddDate(-1, 0, 0), []Value{Value(2.0), Value(1.0)})
+	series.Add(time.Now(), []Value{Value(1.0), Value(2.0)})
+	assert.Equal(t, Value(2.0), series.Value(0, "V1"))
+	assert.Equal(t, Value(1.0), series.Value(0, "V2"))
+	assert.Equal(t, Value(1.0), series.Value(1, "V1"))
+	assert.Equal(t, Value(2.0), series.Value(1, "V2"))
 	sort.Sort(sort.Reverse(series))
-	assert.Equal(t, "V2-0", series.GetAll(0)[0].Name)
-	assert.Equal(t, "V2-1", series.GetAll(0)[1].Name)
-	assert.Equal(t, "V1-0", series.GetAll(1)[0].Name)
-	assert.Equal(t, "V1-1", series.GetAll(1)[1].Name)
+	assert.Equal(t, Value(1.0), series.Value(0, "V1"))
+	assert.Equal(t, Value(2.0), series.Value(0, "V2"))
+	assert.Equal(t, Value(2.0), series.Value(1, "V1"))
+	assert.Equal(t, Value(1.0), series.Value(1, "V2"))
 }
 
-func TestCollectionAdd(t *testing.T) {
-	collection := Collection{}
-	start := time.Now()
-	for time.Now().Sub(start) < 2*time.Second {
-		collection.Add(time.Now(), []Value{
-			Value{
-				Value: rand.Float64(),
-			},
-			Value{
-				Value: rand.Float64(),
-			},
-		})
-	}
-	// This could occasionally fail if the test begins
-	// at the beginning of a second in which case the
-	// length should be 2.
-	assert.Equal(t, 3, len(collection.Series))
-	fmt.Println(len(collection.Series))
-	// Add a new set of values during the timespan of the previous operation
-	// the method should find the previous series and append it there
-	collection.Add(start.Add(1*time.Second), []Value{
-		Value{
-			Value: rand.Float64(),
-		},
-	})
-	assert.Equal(t, 3, len(collection.Series))
-	// Add another entry several seconds after all the previous values
-	// ensuring a new Series is created
-	collection.Add(time.Now().Add(10*time.Second), []Value{
-		Value{
-			Value: rand.Float64(),
-		},
-	})
-	assert.Equal(t, 4, len(collection.Series))
+func TestSeriesExists(t *testing.T) {
+	series := NewSeries([]string{"V1"})
+	series.Add(time.Now(), []Value{Value(1.0)})
+	series.Add(time.Now(), []Value{Value(2.0)})
+	series.Add(time.Now(), []Value{Value(1.0)})
+	assert.True(t, series.Exists(0, Key(0), true))
+	assert.True(t, series.Exists(0, Key(1), true))
+	assert.True(t, series.Exists(1, Key(0), true))
+	assert.False(t, series.Exists(0, Key(2), true))
+	assert.False(t, series.Exists(3, Key(0), false))
+	assert.False(t, series.Exists(3, Key(1), true))
 }
 
-func TestCollectionRollup(t *testing.T) {
-	collection := &Collection{}
-	previous := time.Date(2016, time.January, 1, 0, 0, 0, 0, time.UTC)
-	for i := 0; i < 23; i++ {
-		// Increase the month each iteration
-		previous = previous.AddDate(0, 1, 0)
-		collection.Add(previous, []Value{
-			Value{
-				Value: rand.Float64(),
-			},
-			Value{
-				Value: rand.Float64(),
-			},
-		})
+func TestNext(t *testing.T) {
+	series := NewSeries([]string{"V1"})
+	for i := 0; i < 10; i++ {
+		series.Add(time.Now(), []Value{Value(rand.Float64())})
 	}
-	assert.Equal(t, 23, collection.Len())
-	// Rollup the collection by years, starting from January 1, 23 months
-	// should be aggregated into two year long series
-	collection.RollUp(Years)
-	assert.Equal(t, 2, collection.Len())
+	for i := 0; i < 10; i++ {
+		assert.Equal(t, i, series.index)
+		series.Next()
+	}
+	assert.Nil(t, series.Next())
+	assert.Equal(t, 0, series.index)
+}
+
+func TestResize(t *testing.T) {
+	series := make([]*Series, 1)
+	start := time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	series[0] = NewSeries([]string{"V1", "V2"})
+	for i := 0; i < 60; i++ {
+		series[0].Add(start, []Value{
+			Value(rand.Float64()),
+			Value(rand.Float64()),
+		})
+		start = start.Add(1 * time.Second)
+	}
+	assert.Equal(t, 60, len(Resize(series, 1*time.Second)))
+	assert.Equal(t, 30, len(Resize(series, 2*time.Second)))
+	assert.Equal(t, 1, len(Resize(series, 60*time.Second)))
+	assert.Equal(t, 1, len(Resize(series, 1*time.Hour)))
+
+	// Wide series over 24 hours
+	series = make([]*Series, 24)
+	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	for s := 0; s < 24; s++ {
+		series[s] = NewSeries([]string{"V1", "V2"})
+		for i := 0; i < 3600; i++ {
+			series[s].Add(start, []Value{
+				Value(rand.Float64()),
+				Value(rand.Float64()),
+			})
+			start = start.Add(1 * time.Second)
+		}
+	}
+	assert.Equal(t, 24, len(series))
+	assert.Equal(t, 3600, len(series[0].values))
+	assert.Equal(t, 86400, len(Resize(series, 1*time.Second)))
+	assert.Equal(t, 24, len(Resize(series, 1*time.Hour)))
+	assert.Equal(t, 1440, len(Resize(series, 1*time.Minute)))
+
+	// Single large series
+	series = make([]*Series, 1)
+	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	series[0] = NewSeries([]string{"V1", "V2"})
+	for i := 0; i < 86400; i++ {
+		series[0].Add(start, []Value{
+			Value(rand.Float64()),
+			Value(rand.Float64()),
+		})
+		start = start.Add(1 * time.Second)
+	}
+	assert.Equal(t, 24, len(Resize(series, 1*time.Hour)))
+
+	// Random unsorted times
+	series = make([]*Series, 1)
+	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	series[0] = NewSeries([]string{"V1", "V2"})
+	for i := 0; i < 30; i++ {
+		series[0].Add(start, []Value{
+			Value(rand.Float64()),
+			Value(rand.Float64()),
+		})
+		start = start.Add(time.Duration(rand.Intn(5)) * time.Minute)
+	}
+	assert.True(t, len(Resize(series, 1*time.Minute)) < 30)
+	assert.True(t, len(Resize(series, 1*time.Minute)) > 1)
+}
+
+func TestSeriesFunction(t *testing.T) {
+	series := make([]*Series, 10)
+	start := time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	// Add 1000 1 minute intervals
+	for s := 0; s < 10; s++ {
+		series[s] = NewSeries([]string{"V1", "V2"})
+		for i := 0; i < 100; i++ {
+			series[s].Add(start, []Value{
+				Value(1.0),
+				Value(2.0),
+			})
+			start = start.Add(1 * time.Minute)
+		}
+	}
+	// Aggregate by day
+	assert.Equal(t, 1, len(Resize(series, 24*time.Hour)))
+	assert.Equal(t, 100, len(series[0].values))
+	assert.Equal(t, 1, len(Sum(series[0]).values))
+	assert.Equal(t, Value(100), Sum(series[0]).Value(0, "V1"))
+	assert.Equal(t, Value(200), Sum(series[0]).Value(0, "V2"))
+	assert.Equal(t, series[0].Start(), Sum(series[0]).Start())
+	assert.Equal(t, len(series[0].values[0]), len(Sum(series[0]).values[0]))
+	assert.Equal(t, 10, len(series))
+	assert.Equal(t, 10, len(Apply(series, Sum)))
+	for _, series := range Apply(series, Sum) {
+		assert.Equal(t, Value(100), series.Value(0, "V1"))
+		assert.Equal(t, Value(200), series.Value(0, "V2"))
+	}
+	series = make([]*Series, 10)
+	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	series = []*Series{NewSeries([]string{"V1"})}
+	series[0].Add(start, []Value{
+		Value(1.2),
+	})
+	series[0].Add(start, []Value{
+		Value(1.0),
+	})
+	series[0].Add(start, []Value{
+		Value(2.0),
+	})
+	series[0].Add(start, []Value{
+		Value(1.8),
+	})
+	series[0].Add(start, []Value{
+		Value(1.6),
+	})
+	series[0].Add(start, []Value{
+		Value(1.4),
+	})
+	assert.Equal(t, Value(1.5), Avg(series[0]).Value(0, "V1"))
+	assert.Equal(t, Value(1.0), Min(series[0]).Value(0, "V1"))
+	assert.Equal(t, Value(2.0), Max(series[0]).Value(0, "V1"))
 }
 
 func init() {
