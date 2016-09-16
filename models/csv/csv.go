@@ -16,26 +16,31 @@ type CSV struct {
 	records [][]string
 }
 
-func (c *CSV) Load() *models.Collection {
-	names := c.records[0]
-	collection := &models.Collection{}
+func (c *CSV) Load() []*models.Series {
+	series := make([]*models.Series, 1)
+	names := make([]string, 0)
+	start := time.Now()
+	for _, name := range c.records[0] {
+		if name == "" {
+			name = "NO_NAME"
+		}
+		names = append(names, name)
+	}
+	series[0] = models.NewSeries(names)
 	for _, record := range c.records[1:] {
 		values := make([]models.Value, 0)
-		for i, v := range record {
+		for _, v := range record {
 			value, err := strconv.ParseFloat(v, 64)
 			if err != nil {
 				continue
 			}
 			// TODO: This will panic if the length of
 			// values changes. Need to support missing data
-			values = append(values, models.Value{
-				Name:  names[i],
-				Value: value,
-			})
+			values = append(values, models.Value(value))
 		}
-		collection.Add(time.Now(), values)
+		series[0].Add(start, values)
 	}
-	return collection
+	return series
 }
 
 func FromFile(path string) (*CSV, error) {
