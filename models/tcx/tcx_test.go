@@ -1,6 +1,7 @@
 package tcx
 
 import (
+	"github.com/kevinschoon/gofit/models"
 	"github.com/kevinschoon/tcx"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -39,18 +40,18 @@ func TestTCX(t *testing.T) {
 		},
 	}
 	assert.Equal(t, 2, len(data.Acts))
-	collection := data.Load()
-	assert.Equal(t, 2, collection.Len())
-	assert.Equal(t, 200.0, collection.Series[0].Get(0, Distance).Value)
-	assert.Equal(t, 400.0, collection.Series[1].Get(0, Distance).Value)
+	series := data.Load()[0]
+	assert.Equal(t, 2, series.Len())
+	assert.Equal(t, models.Value(200.0), series.Value(0, "Distance"))
+	assert.Equal(t, models.Value(400.0), series.Value(1, "Distance"))
 }
 
 func TestTCXLoad(t *testing.T) {
 	data, err := FromDir("test/sample.tcx")
 	assert.NoError(t, err)
-	collection := data.Load()
-	assert.Equal(t, 1, collection.Len())
-	assert.Equal(t, 8348.5039063, collection.Series[0].Get(0, Distance).Value)
-	assert.Equal(t, 2325.02, collection.Series[0].Get(0, Duration).Value)
-	assert.Equal(t, 1.0, collection.Series[0].Get(0, Laps).Value)
+	series := data.Load()[0]
+	assert.Equal(t, 1, series.Len())
+	assert.Equal(t, models.Value(8348.5039063), series.Value(0, "Distance"))
+	assert.Equal(t, models.Value(2325.02), series.Value(0, "Duration"))
+	assert.Equal(t, models.Value(1.0), series.Value(0, "Laps"))
 }

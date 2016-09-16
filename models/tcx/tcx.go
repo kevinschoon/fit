@@ -5,35 +5,25 @@ import (
 	"github.com/kevinschoon/tcx"
 )
 
-const (
-	Laps models.Key = iota
-	Distance
-	Duration
-)
-
 type TCX struct {
 	Acts tcx.Acts
 }
 
-func (t TCX) Load() *models.Collection {
-	collection := &models.Collection{}
+func (t TCX) Load() []*models.Series {
+	series := make([]*models.Series, 1)
+	series[0] = models.NewSeries([]string{
+		"Laps",
+		"Distance",
+		"Duration",
+	})
 	for _, act := range t.Acts {
-		collection.Add(act.StartTime, []models.Value{
-			models.Value{
-				Name:  "Laps",
-				Value: float64(len(act.Laps)),
-			},
-			models.Value{
-				Name:  "Dist",
-				Value: act.Distance(),
-			},
-			models.Value{
-				Name:  "Duration",
-				Value: act.Duration(),
-			},
+		series[0].Add(act.StartTime, []models.Value{
+			models.Value(len(act.Laps)),
+			models.Value(act.Distance()),
+			models.Value(act.Duration()),
 		})
 	}
-	return collection
+	return series
 }
 
 // FromDir loads TCX data from a directory
