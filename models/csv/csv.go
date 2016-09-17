@@ -1,3 +1,6 @@
+/*
+Loads arbitrary CSV data into a Series
+*/
 package csv
 
 import (
@@ -10,12 +13,12 @@ import (
 	"time"
 )
 
-type Options struct{}
-
+// CSV stores records from CSV files
 type CSV struct {
 	records [][]string
 }
 
+// Load returns an array of Series from loaded CSV data
 func (c *CSV) Load() []*models.Series {
 	series := make([]*models.Series, 1)
 	names := make([]string, 0)
@@ -43,6 +46,7 @@ func (c *CSV) Load() []*models.Series {
 	return series
 }
 
+// FromFile loads CSV data from a single file and returns a CSV
 func FromFile(path string) (*CSV, error) {
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -63,6 +67,7 @@ func FromFile(path string) (*CSV, error) {
 	return &CSV{records: records}, nil
 }
 
+// FromDir loads discovers CSV files in a directory and returns a CSV
 func FromDir(path string) (*CSV, error) {
 	// TODO
 	return nil, nil

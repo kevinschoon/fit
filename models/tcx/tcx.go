@@ -1,3 +1,6 @@
+/*
+Reads Garmin TCX data into a Series
+*/
 package tcx
 
 import (
@@ -5,10 +8,12 @@ import (
 	"github.com/kevinschoon/tcx"
 )
 
+// TCX stores TCX activity data
 type TCX struct {
 	Acts tcx.Acts
 }
 
+// Load returns an array of Series from loaded TCX data
 func (t TCX) Load() []*models.Series {
 	series := make([]*models.Series, 1)
 	series[0] = models.NewSeries([]string{
