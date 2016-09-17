@@ -198,6 +198,7 @@ func Resize(input []*Series, aggr time.Duration) (output []*Series) {
 // Copy performs a shallow copy of the given series
 func Copy(in *Series) *Series {
 	series := &Series{
+		Name: in.Name,
 		Keys: make(map[string]Key),
 	}
 	for name, key := range in.Keys {
