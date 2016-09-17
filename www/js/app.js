@@ -1,27 +1,23 @@
 $(function() {
     $('#daterange .input-daterange').datepicker({});
-    console.log(window.location.pathname);
-    console.log(window.location.href);
-    var urlParams;
-    (window.onpopstate = function() {
-        var match,
-            pl = /\+/g, // Regex for replacing addition symbol with a space
-            search = /([^&=]+)=?([^&]*)/g,
-            decode = function(s) {
-                return decodeURIComponent(s.replace(pl, " "));
-            },
-            query = window.location.search.substring(1);
-
-        urlParams = {};
-        while (match = search.exec(query))
-            urlParams[decode(match[1])] = decode(match[2]);
-    })();
-    console.log(urlParams)
-    for (var i in urlParams) {
-        console.log(urlParams[i])
+    function update(uri, key, value) {
+        // Thanks http://stackoverflow.com/questions/5999118/add-or-update-query-string-parameter#6021027
+        var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+        var separator = uri.indexOf('?') !== -1 ? "&" : "?";
+        if (uri.match(re)) {
+            return uri.replace(re, '$1' + key + "=" + value + '$2');
+        } else {
+            return uri + separator + key + "=" + value;
+        }
     }
     $("#submit").on('click', function() {
-        console.log($("#aggregation").val());
-        window.location = "/"
+        var target = window.location.pathname
+        var Q = window.location.search
+        console.log(Q)
+        Q = update(Q, "x", $("#x").val())
+        Q = update(Q, "y", $("#y").val())
+        Q = update(Q, "aggr", $("#aggr").val())
+        //console.log(window.location.pathname + Q)
+        window.location = window.location.pathname + Q
     });
 })

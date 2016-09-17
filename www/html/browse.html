@@ -1,12 +1,12 @@
-{{define "collections"}}
+{{define "browse"}}
 <div class="collections">
 <div class="row">
   <div class="col-md-4"></div>
   <div class="col-md-4">
     <ul class="list-group">
-      <h3> Browse Collections </h3>
-    {{range .Collections}}
-    <li class="list-group-item"> <a href="/{{.}}">{{.}}</a></li>
+      <h3> Browse Series </h3>
+    {{range .Series}}
+    <li class="list-group-item"> <a href="/{{.Name}}">{{.Name}}</a></li>
     {{end}}
   </ul>
   </div>

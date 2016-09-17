@@ -1,45 +1,67 @@
 package server
 
+/*
+
 import (
-	"net/url"
-	"strconv"
-	//"strings"
 	"github.com/kevinschoon/gofit/models"
+	"net/url"
 	"time"
 )
 
-// Query is used to query the database
-type Query struct {
-	Name      string            // Name of the series
-	Start     time.Time         // Starting time of the entry
-	End       time.Time         // Ending time of the entry
-	Precision models.Precision  // Level of precision (value rollup) to apply
-	Match     map[string]string // Optional value to match on
-	X         models.Key        // X axis
-	Y         models.Key        // Y axis
+func StartEnd(u *url.URL) (start time.Time, end time.Time) {
+	start, _ = time.Parse("2006-Jan-02", u.Query().Get("start"))
+	end, _ = time.Parse("2006-Jan-02", u.Query().Get("end"))
+	if end.IsZero() {
+		end = time.Now()
+	}
+	return start, end
 }
 
-// QueryFromURL builds a database query from a URL query string
-// A full query with all options specified might look like:
-// ?match=sport,Running&aggr=day&end=2016-Sep-03&start=2016-Aug-03
-func QueryFromURL(u *url.URL) *Query {
-	values := u.Query()
-	query := &Query{
-		Match: make(map[string]string),
+func Aggr(u *url.URL) (aggr models.Aggregation) {
+	aggr = models.None
+	switch u.Query().Get("aggr") {
+	case "days":
+		aggr = models.Days
+	case "months":
+		aggr = models.Months
+	case "years":
+		aggr = models.Years
 	}
-	query.Start, _ = time.Parse("2006-Jan-02", values.Get("start"))
-	query.End, _ = time.Parse("2006-Jan-02", values.Get("end"))
-	if query.End.IsZero() { // Default to showing all data until the current time.
-		query.End = time.Now()
-	}
-	val, _ := strconv.ParseInt(values.Get("precision"), 0, 64)
-	query.Precision = models.Precision(val)
-	X, _ := strconv.ParseInt(values.Get("X"), 0, 64)
-	Y, _ := strconv.ParseInt(values.Get("Y"), 0, 64)
-	if X == 0 && Y == 0 {
-		Y = 1
-	}
-	query.X = models.Key(X)
-	query.Y = models.Key(Y)
-	return query
+	return aggr
 }
+
+func XY(u *url.URL, collection *models.Collection) (X models.Key, Y models.Key) {
+	X = models.Key(0)
+	Y = models.Key(1)
+	if name := u.Query().Get("x"); name != "" {
+		for i, n := range collection.Names() {
+			if name == n {
+				X = models.Key(i)
+			}
+		}
+	}
+	if name := u.Query().Get("y"); name != "" {
+		for i, n := range collection.Names() {
+			if name == n {
+				Y = models.Key(i)
+			}
+		}
+	}
+	return X, Y
+}
+
+func Fn(u *url.URL) models.Function {
+	switch u.Query().Get("fn") {
+	case "sum":
+		return models.Function(models.Sum)
+	case "avg":
+		return models.Function(models.Avg)
+	case "min":
+		return models.Function(models.Min)
+	case "max":
+		return models.Function(models.Max)
+	default:
+		return models.Function(models.Avg)
+	}
+}
+*/
