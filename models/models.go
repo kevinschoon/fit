@@ -29,6 +29,7 @@ func (value Value) Time() time.Time {
 	return time.Unix(int64(value), 64)
 }
 
+// Sortable implements the sort.Sort interface for an array of Value
 type Sortable []Value
 
 func (s Sortable) Len() int           { return len(s) }
@@ -41,7 +42,7 @@ type Values [][]Value
 // Series is an append-only collection of Values grouped by time
 // A series can apply different functions to the data combined within
 type Series struct {
-	values Values // Arbitrarily sized collection of values
+	values Values `json:"-"` // Arbitrarily sized collection of values
 	index  int
 	Name   string
 	Keys   map[string]Key
@@ -129,31 +130,14 @@ func (series *Series) Next() (values []Value) {
 	return values
 }
 
-// Resize takes an array of series and arranges
-// the underlying values based on the specified duration
-func Resize(input []*Series, aggr time.Duration) (output []*Series) {
-	var current *Series
-	for _, series := range input {
-		sort.Sort(series)
-		if len(output) == 0 {
-			current = &Series{
-				Keys:   series.Keys,
-				values: Values{series.Next()},
-			}
-			output = append(output, current)
-		}
-		for values := series.Next(); values != nil; values = series.Next() {
-			duration := current.End().Sub(current.Start()) + values[0].Time().Sub(current.End())
-			if duration >= aggr {
-				current = &Series{
-					Keys: series.Keys,
-				}
-				output = append(output, current)
-			}
-			current.values = append(current.values, values)
-		}
-	}
-	return output
+// Dump returns all of the values in the Series
+func (series Series) Dump() Values {
+	return series.values
+}
+
+// Import replaces all current values with those provided
+func (series *Series) Import(values Values) {
+	series.values = values
 }
 
 // New series creates a new Series
@@ -171,6 +155,44 @@ func NewSeries(columns []string) *Series {
 		series.Keys[columns[i-1]] = Key(i)
 	}
 	return series
+}
+
+// Resize takes an array of series and arranges
+// the underlying values based on the specified duration
+// TODO: Ensure that all series are of the same name
+// and share the same keys
+func Resize(input []*Series, aggr time.Duration) (output []*Series) {
+	var current *Series
+	for _, series := range input {
+		// Values are initially sorted by time
+		sort.Sort(series)
+		// We are at the first Series
+		if len(output) == 0 {
+			// Shallow copy Series
+			current = Copy(series)
+			// Set the values of the current series to
+			// the next set of Values in the array
+			current.values = Values{series.Next()}
+			// Append the current Series to the output
+			output = append(output, current)
+		}
+		// Iterate the Series until the end of it's values
+		for values := series.Next(); values != nil; values = series.Next() {
+			// Get the duration of all the values within the Series
+			duration := current.End().Sub(current.Start()) + values[0].Time().Sub(current.End())
+			// The duration of the current series exceeds the
+			// the aggregation threshold.
+			if duration >= aggr {
+				// Show copy the series and set it current
+				current = Copy(series)
+				// Append the new Series to the output
+				output = append(output, current)
+			}
+			// Add this series of Values to the current Series
+			current.values = append(current.values, values)
+		}
+	}
+	return output
 }
 
 // Copy performs a shallow copy of the given series
