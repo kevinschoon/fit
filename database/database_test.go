@@ -1,8 +1,7 @@
 package database
 
 import (
-	t "github.com/kevinschoon/gofit/models/tcx"
-	"github.com/kevinschoon/tcx"
+	"github.com/kevinschoon/gofit/models"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/rand"
@@ -13,23 +12,19 @@ import (
 
 var cleanup bool = false
 
-func getTCX(count int) *t.TCX {
-	t := &t.TCX{
-		Acts: make(tcx.Acts, count),
+func Series(count int) []*models.Series {
+	series := make([]*models.Series, 1)
+	series[0] = models.NewSeries([]string{"V1", "V2"})
+	series[0].Name = "TestSeries"
+	start := time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < count; i++ {
+		series[0].Add(start, []models.Value{
+			models.Value(rand.Float64()),
+			models.Value(rand.Float64()),
+		})
+		start = start.Add(1 * time.Second)
 	}
-	for x := 0; x < count; x++ {
-		t.Acts[x] = tcx.Activity{
-			StartTime: time.Now().AddDate(0, 0, -x),
-			Laps:      make([]tcx.Lap, 5),
-		}
-		for i := 0; i < 5; i++ {
-			t.Acts[x].Laps[i] = tcx.Lap{
-				TotalTime: rand.Float64(),
-				Dist:      rand.Float64(),
-			}
-		}
-	}
-	return t
+	return series
 }
 
 func newDB(t *testing.T) (*DB, func()) {
@@ -37,7 +32,7 @@ func newDB(t *testing.T) (*DB, func()) {
 	if err != nil {
 		t.Error(err)
 	}
-	db, err := New(f.Name())
+	db, err := New(f.Name(), true)
 	assert.NoError(t, err)
 	fn := func() {
 		db.Close()
@@ -48,14 +43,27 @@ func newDB(t *testing.T) (*DB, func()) {
 	return db, fn
 }
 
-func TestDatabase(t *testing.T) {
+func TestDBSeriesReadWrite(t *testing.T) {
 	db, cleanup := newDB(t)
 	defer cleanup()
-	collection := getTCX(1000).Load()
-	assert.NoError(t, db.Write("stuff", collection))
-	collection, err := db.Read("stuff", time.Time{}, time.Now())
+	series := Series(10000)
+	assert.Equal(t, 1, len(series))
+	series[0].Name = "SeriesReadWrite"
+	assert.Equal(t, 3, len(series[0].Keys))
+	assert.Equal(t, models.Key(0), series[0].Keys["time"])
+	assert.Equal(t, models.Key(1), series[0].Keys["V1"])
+	assert.Equal(t, models.Key(2), series[0].Keys["V2"])
+	assert.NoError(t, db.WriteSeries(series))
+	series, err := db.Series()
+	assert.Equal(t, 1, len(series))
+	series, err = db.ReadSeries("SeriesReadWrite", time.Time{}, time.Now())
 	assert.NoError(t, err)
-	assert.Equal(t, collection.Len(), 1000)
+	// Series should be loaded at original 1/s interval
+	assert.Equal(t, 10000, len(series))
+	assert.Equal(t, 3, len(series[0].Keys))
+	assert.Equal(t, models.Key(0), series[0].Keys["time"])
+	assert.Equal(t, models.Key(1), series[0].Keys["V1"])
+	assert.Equal(t, models.Key(2), series[0].Keys["V2"])
 }
 
 func init() {
