@@ -15,6 +15,7 @@ import (
 
 // CSV stores records from CSV files
 type CSV struct {
+	Name    string
 	records [][]string
 }
 
@@ -30,6 +31,7 @@ func (c *CSV) Load() []*models.Series {
 		names = append(names, name)
 	}
 	series[0] = models.NewSeries(names)
+	series[0].Name = c.Name
 	for _, record := range c.records[1:] {
 		values := make([]models.Value, 0)
 		for _, v := range record {
@@ -47,7 +49,7 @@ func (c *CSV) Load() []*models.Series {
 }
 
 // FromFile loads CSV data from a single file and returns a CSV
-func FromFile(path string) (*CSV, error) {
+func FromFile(path, name string) (*CSV, error) {
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -64,7 +66,7 @@ func FromFile(path string) (*CSV, error) {
 		}
 		records = append(records, record)
 	}
-	return &CSV{records: records}, nil
+	return &CSV{Name: name, records: records}, nil
 }
 
 // FromDir loads discovers CSV files in a directory and returns a CSV

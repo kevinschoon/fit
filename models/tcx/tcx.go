@@ -10,6 +10,7 @@ import (
 
 // TCX stores TCX activity data
 type TCX struct {
+	Name string
 	Acts tcx.Acts
 }
 
@@ -21,6 +22,7 @@ func (t TCX) Load() []*models.Series {
 		"Distance",
 		"Duration",
 	})
+	series[0].Name = t.Name
 	for _, act := range t.Acts {
 		series[0].Add(act.StartTime, []models.Value{
 			models.Value(len(act.Laps)),
@@ -32,12 +34,14 @@ func (t TCX) Load() []*models.Series {
 }
 
 // FromDir loads TCX data from a directory
-func FromDir(path string) (*TCX, error) {
+func FromDir(path, name string) (*TCX, error) {
 	tcxDbs, err := tcx.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
-	t := &TCX{}
+	t := &TCX{
+		Name: name,
+	}
 	for _, db := range tcxDbs {
 		for _, act := range db.Acts.Act {
 			t.Acts = append(t.Acts, act)
