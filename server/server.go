@@ -21,7 +21,7 @@ func RunServer(db *database.DB, pattern, path string) {
 	handler := Handler{db: db, templates: templates}
 	router.Handle("/", ErrorHandler(handler.Home))
 	router.Handle("/{series}", ErrorHandler(handler.Home))
-	router.Handle("/{series}/chart", ErrorHandler(handler.Home))
+	router.Handle("/{series}/chart", ErrorHandler(handler.Chart))
 	router.Handle("/static/{directory}/{file}", StaticHandler{
 		Path: path,
 		Allowed: map[string][]string{

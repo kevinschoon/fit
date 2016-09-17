@@ -1,16 +1,9 @@
 package models
 
-import "time"
-import "sort"
-
-type Aggregation int
-
-const (
-	// Aggregation represents the level of aggregation to apply to a collection of Series
-	Days Aggregation = iota
-	Months
-	Years
-	None
+import (
+	"sort"
+	"strconv"
+	"time"
 )
 
 // Key is an identifier to represent a value within a series
@@ -23,6 +16,10 @@ type Value float64
 
 func (value Value) Float64() float64 {
 	return float64(value)
+}
+
+func (value Value) String() string {
+	return strconv.FormatFloat(float64(value), 'E', -1, 64)
 }
 
 func (value Value) Time() time.Time {
@@ -205,4 +202,13 @@ func Copy(in *Series) *Series {
 		series.Keys[name] = Key(int(key))
 	}
 	return series
+}
+
+// Keys returns an ordered array of Series key names
+func Keys(in *Series) []string {
+	out := make([]string, len(in.Keys))
+	for key, value := range in.Keys {
+		out[int(value)] = key
+	}
+	return out
 }

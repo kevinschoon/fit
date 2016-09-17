@@ -9,13 +9,19 @@
     <table class="table table-striped table-responsive">
       <thead>
         <tr>
-          <th> Time </th>
+          {{range .Keys}}
+          <th> {{.}} </th>
+          {{end}}
         </tr>
       </thead>
       <tbody>
-        {{range .Series}}
+        {{range .Rows}}
         <tr>
-          <td>{{.}}</td>
+          {{range .}}
+          <td>
+            {{.}}
+          </td>
+          {{end}}
         </tr>
         {{end}}
       </tbody>

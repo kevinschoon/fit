@@ -60,10 +60,18 @@ func TestResize(t *testing.T) {
 		})
 		start = start.Add(1 * time.Second)
 	}
+	assert.Equal(t, 60, len(series[0].values))
 	assert.Equal(t, 60, len(Resize(series, 1*time.Second)))
 	assert.Equal(t, 30, len(Resize(series, 2*time.Second)))
 	assert.Equal(t, 1, len(Resize(series, 60*time.Second)))
 	assert.Equal(t, 1, len(Resize(series, 1*time.Hour)))
+
+	// Test that underlying values stay consistently sized
+	series = Resize(series, 1*time.Hour)
+	assert.Equal(t, 60, len(series[0].values))
+	series = Resize(series, 1*time.Second)
+	assert.Equal(t, 60, len(series))
+	assert.Equal(t, 1, len(series[0].values))
 
 	// Wide series over 24 hours
 	series = make([]*Series, 24)
