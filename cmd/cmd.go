@@ -17,35 +17,46 @@ func FailOnErr(err error) {
 	}
 }
 
+// Server starts the HTTP server
 func Server(cmd *cli.Cmd) {
-	pattern := *cmd.StringOpt("pattern", ":8000", "IP and port pattern to listen on")
-	dbPath := *cmd.StringOpt("p path", "/tmp/gofit.db", "Path to BoltDB")
-	static := *cmd.StringOpt("static", "./www", "Path to static assets")
+	var (
+		pattern = cmd.StringOpt("pattern", ":8000", "IP and port pattern to listen on")
+		path    = cmd.StringOpt("p path", "/tmp/gofit.db", "Path to BoltDB")
+		static  = cmd.StringOpt("static", "./www", "Path to static assets")
+		debug   = cmd.BoolOpt("--debug", true, "Enable Debugging")
+	)
 	cmd.Action = func() {
-		db, err := database.New(dbPath)
+		db, err := database.New(*path, *debug)
 		FailOnErr(err)
-		server.RunServer(db, pattern, static)
+		server.RunServer(db, *pattern, *static)
 	}
 }
 
+// Load ingests data into the database
 func Load(cmd *cli.Cmd) {
-	name := cmd.StringOpt("n name", "", "Name for this dataset")
-	dataType := cmd.StringOpt("t type", "", "Type of data to load")
-	dataPath := cmd.StringOpt("p path", "Takeout/", "Path to your raw dataset")
-	dbPath := cmd.StringOpt("d database", "/tmp/gofit.db", "Path to BoltDB")
+	var (
+		name     = cmd.StringOpt("n name", "", "Name for this dataset")
+		dataType = cmd.StringOpt("t type", "", "Type of data to load")
+		dataPath = cmd.StringOpt("p path", "Takeout/", "Path to your raw dataset")
+		dbPath   = cmd.StringOpt("d database", "/tmp/gofit.db", "Path to BoltDB")
+		debug    = cmd.BoolOpt("debug", true, "Enable Debugging")
+	)
 	cmd.Action = func() {
-		db, err := database.New(*dbPath)
+		db, err := database.New(*dbPath, *debug)
 		FailOnErr(err)
-		fmt.Println(*name, *dataType, *dataPath, *dbPath)
+		if *dataType == "" || *name == "" {
+			cmd.PrintHelp()
+			os.Exit(1)
+		}
 		switch *dataType {
 		case "tcx":
-			data, err := tcx.FromDir(*dataPath)
+			data, err := tcx.FromDir(*dataPath, *name)
 			FailOnErr(err)
-			FailOnErr(db.Write(*name, data.Load()))
+			FailOnErr(db.WriteSeries(data.Load()))
 		case "csv":
-			data, err := csv.FromFile(*dataPath)
+			data, err := csv.FromFile(*dataPath, *name)
 			FailOnErr(err)
-			FailOnErr(db.Write(*name, data.Load()))
+			FailOnErr(db.WriteSeries(data.Load()))
 		default:
 			FailOnErr(fmt.Errorf("Unknown datatype %s", *dataType))
 		}
