@@ -3,7 +3,7 @@ package server
 import (
 	"fmt"
 	"github.com/gorilla/mux"
-	//"github.com/kevinschoon/gofit/chart"
+	"github.com/kevinschoon/gofit/chart"
 	"github.com/kevinschoon/gofit/database"
 	"github.com/kevinschoon/gofit/models"
 	"time"
@@ -46,6 +46,12 @@ func (r Response) Rows() [][]string {
 	return rows
 }
 
+type ErrorHandler func(http.ResponseWriter, *http.Request) error
+
+func (fn ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	HandleError(fn(w, r), w, r)
+}
+
 func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Println("ERROR: ", err.Error())
@@ -62,12 +68,6 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type ErrorHandler func(http.ResponseWriter, *http.Request) error
-
-func (fn ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	HandleError(fn(w, r), w, r)
-}
-
 type Handler struct {
 	db        *database.DB
 	templates []string
@@ -79,12 +79,14 @@ func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(len(series))
 	series = models.Resize(series, Aggr(r.URL))
-	fmt.Println(series[0].Dump())
 	series = models.Apply(series, Fn(r.URL))
-	fmt.Println(series[0].Dump())
-	return nil
+	canvas, err := chart.New(ChartCfg(series[0], r.URL), series)
+	if err != nil {
+		return err
+	}
+	_, err = canvas.WriteTo(w)
+	return err
 }
 
 func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {

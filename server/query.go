@@ -1,7 +1,10 @@
 package server
 
 import (
+	"github.com/gonum/plot/vg"
+	"github.com/kevinschoon/gofit/chart"
 	"github.com/kevinschoon/gofit/models"
+	"image/color"
 	"net/url"
 	"strings"
 	"time"
@@ -67,6 +70,31 @@ func Fn(u *url.URL) models.Function {
 	default:
 		return models.Function(models.Avg)
 	}
+}
+
+// ChartCfg extracts a charting configuration from the URL
+func ChartCfg(series *models.Series, u *url.URL) chart.Config {
+	cfg := chart.Config{
+		Title:          series.Name,
+		PrimaryColor:   color.White,
+		SecondaryColor: color.Black,
+		Width:          12 * vg.Inch,
+		Height:         12 * vg.Inch,
+	}
+	cfg.XAxis = models.Key(0) // Default
+	cfg.XLabel = "time"
+	name := u.Query().Get("X")
+	if key, ok := series.Keys[name]; ok {
+		cfg.XLabel = name
+		cfg.XAxis = key
+	}
+	cfg.YAxis = make(map[string]models.Key)
+	for _, name := range StrArray("Y", u) {
+		if key, ok := series.Keys[name]; ok {
+			cfg.YAxis[name] = key
+		}
+	}
+	return cfg
 }
 
 /*
