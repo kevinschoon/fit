@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"github.com/kevinschoon/gofit/models"
+	"log"
 	"time"
 )
 
@@ -77,9 +78,10 @@ func (db *DB) WriteSeries(series []*models.Series) error {
 			// Values for each Series are written to a key
 			// with a timestamp corresponding to the time
 			// of the first set of Values for this Series
-			if err := b.Put([]byte(s.Start().UTC().Format(time.RFC3339)), raw); err != nil {
+			if err := b.Put([]byte(s.Start().Format(time.RFC3339)), raw); err != nil {
 				return err
 			}
+			log.Printf("WRITE [%s] - (%s - %s)", s.Name, s.Start().String(), s.End().String())
 		}
 		return nil
 	})
@@ -87,6 +89,7 @@ func (db *DB) WriteSeries(series []*models.Series) error {
 
 // ReadSeries reads a Series from the database
 func (db *DB) ReadSeries(name string, start, end time.Time) (series []*models.Series, err error) {
+	log.Printf("READ [%s] - (%s-%s)", name, start.String(), end.String())
 	err = db.bolt.View(func(tx *bolt.Tx) error {
 		// Get the models bucket
 		b := tx.Bucket([]byte("models"))
@@ -128,6 +131,9 @@ func (db *DB) ReadSeries(name string, start, end time.Time) (series []*models.Se
 			s.Import(values)
 			// Append this series to the array
 			series = append(series, s)
+		}
+		if len(series) == 0 {
+			return ErrSeriesNotFound
 		}
 		return nil
 	})
