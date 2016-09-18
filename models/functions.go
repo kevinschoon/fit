@@ -8,9 +8,9 @@ type Function func(*Series) *Series
 func Sum(input *Series) *Series {
 	out := Copy(input)
 	container := make([]Value, len(input.Keys))
-	for _, row := range input.values {
-		for _, key := range input.Keys {
-			container[int(key)] += row[int(key)]
+	for _, key := range input.Keys {
+		for _, value := range input.Values(key) {
+			container[int(key)] += value
 		}
 	}
 	out.Add(input.Start(), container[1:])

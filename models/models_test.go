@@ -148,7 +148,7 @@ func TestSeriesFunction(t *testing.T) {
 		assert.Equal(t, Value(100), series.Value(0, "V1"))
 		assert.Equal(t, Value(200), series.Value(0, "V2"))
 	}
-	series = make([]*Series, 10)
+	series = make([]*Series, 1)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
 	series = []*Series{NewSeries([]string{"V1"})}
 	series[0].Add(start, []Value{
@@ -169,9 +169,41 @@ func TestSeriesFunction(t *testing.T) {
 	series[0].Add(start, []Value{
 		Value(1.4),
 	})
+	assert.Equal(t, Value(9.0), Sum(series[0]).Value(0, "V1"))
 	assert.Equal(t, Value(1.5), Avg(series[0]).Value(0, "V1"))
 	assert.Equal(t, Value(1.0), Min(series[0]).Value(0, "V1"))
 	assert.Equal(t, Value(2.0), Max(series[0]).Value(0, "V1"))
+	// Test with missing data
+	series = make([]*Series, 1)
+	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	series = []*Series{NewSeries([]string{"V1", "V2"})}
+	series[0].Add(start, []Value{
+		Value(1.2),
+		Value(1.0),
+	})
+	series[0].Add(start, []Value{
+		Value(1.0),
+	})
+	series[0].Add(start, []Value{
+		Value(2.0),
+		Value(1.0),
+	})
+	series[0].Add(start, []Value{
+		Value(1.8),
+		Value(1.0),
+	})
+	series[0].Add(start, []Value{
+		Value(1.6),
+	})
+	series[0].Add(start, []Value{
+		Value(1.4),
+		Value(1.0),
+	})
+	assert.Equal(t, Value(1.5), Avg(series[0]).Value(0, "V1"))
+	assert.Equal(t, Value(1.0), Min(series[0]).Value(0, "V1"))
+	assert.Equal(t, Value(2.0), Max(series[0]).Value(0, "V1"))
+	assert.Equal(t, Value(4.0), Sum(series[0]).Value(0, "V2"))
+
 }
 
 func init() {
