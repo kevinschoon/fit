@@ -212,3 +212,14 @@ func Keys(in *Series) []string {
 	}
 	return out
 }
+
+// Select returns all of the values for a given
+// key across an array of Series
+func Select(key Key, series []*Series) (values []Value) {
+	for _, s := range series {
+		for _, value := range s.Values(key) {
+			values = append(values, value)
+		}
+	}
+	return values
+}
