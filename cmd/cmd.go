@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+const FitVersion string = "0.0.1"
+
 func FailOnErr(err error) {
 	if err != nil {
 		fmt.Println("ERROR:", err.Error())
@@ -23,12 +25,13 @@ func Server(cmd *cli.Cmd) {
 		pattern = cmd.StringOpt("pattern", ":8000", "IP and port pattern to listen on")
 		path    = cmd.StringOpt("p path", "/tmp/gofit.db", "Path to BoltDB")
 		static  = cmd.StringOpt("static", "./www", "Path to static assets")
+		demo    = cmd.BoolOpt("demo", false, "Run in Demo Mode")
 		debug   = cmd.BoolOpt("--debug", true, "Enable Debugging")
 	)
 	cmd.Action = func() {
 		db, err := database.New(*path, *debug)
 		FailOnErr(err)
-		server.RunServer(db, *pattern, *static)
+		server.RunServer(db, *pattern, *static, FitVersion, *demo)
 	}
 }
 
