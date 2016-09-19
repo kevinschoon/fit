@@ -23,7 +23,7 @@ type CSV struct {
 func (c *CSV) Load() []*models.Series {
 	series := make([]*models.Series, 1)
 	names := make([]string, 0)
-	start := time.Now()
+	start := time.Now().UTC()
 	for _, name := range c.records[0] {
 		if name == "" {
 			name = "NO_NAME"
@@ -43,6 +43,7 @@ func (c *CSV) Load() []*models.Series {
 			// values changes. Need to support missing data
 			values = append(values, models.Value(value))
 		}
+		//series[0].Add(time.Now().UTC(), values)
 		series[0].Add(start, values)
 	}
 	return series

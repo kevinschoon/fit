@@ -1,7 +1,6 @@
 package models
 
 import (
-	"sort"
 	"strconv"
 	"time"
 )
@@ -106,6 +105,7 @@ func (series Series) End() time.Time {
 
 // Add enters a new array of Value into the series
 func (series *Series) Add(start time.Time, values []Value) {
+	start = start.UTC()
 	if start.IsZero() {
 		start = time.Now()
 	}
@@ -161,8 +161,6 @@ func NewSeries(columns []string) *Series {
 func Resize(input []*Series, aggr time.Duration) (output []*Series) {
 	var current *Series
 	for _, series := range input {
-		// Values are initially sorted by time
-		sort.Sort(series)
 		// We are at the first Series
 		if len(output) == 0 {
 			// Shallow copy Series
@@ -178,9 +176,9 @@ func Resize(input []*Series, aggr time.Duration) (output []*Series) {
 			// Get the duration of all the values within the Series
 			duration := current.End().Sub(current.Start()) + values[0].Time().Sub(current.End())
 			// The duration of the current series exceeds the
-			// the aggregation threshold.
-			if duration >= aggr {
-				// Show copy the series and set it current
+			// the aggregation threshold or is zero.
+			if duration >= aggr || aggr == time.Duration(0) {
+				// Shallow copy the series and set it current
 				current = Copy(series)
 				// Append the new Series to the output
 				output = append(output, current)

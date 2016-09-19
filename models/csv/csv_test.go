@@ -7,7 +7,7 @@ import (
 )
 
 func TestCSV(t *testing.T) {
-	data, err := FromFile("test/LakeHuron.csv")
+	data, err := FromFile("test/LakeHuron.csv", "LakeHuron")
 	assert.NoError(t, err)
 	series := data.Load()
 	assert.Equal(t, 1, len(series))

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"sort"
@@ -118,6 +119,21 @@ func TestResize(t *testing.T) {
 	}
 	assert.True(t, len(Resize(series, 1*time.Minute)) < 30)
 	assert.True(t, len(Resize(series, 1*time.Minute)) > 1)
+
+	// Single series with identical timestamps
+	series = make([]*Series, 1)
+	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	series[0] = NewSeries([]string{"V1", "V2"})
+	for i := 0; i < 30; i++ {
+		series[0].Add(start, []Value{
+			Value(rand.Float64()),
+			Value(rand.Float64()),
+		})
+		fmt.Println(start)
+		//start = start.Add(time.Duration(rand.Intn(5)) * time.Minute)
+	}
+	// Zero durations should result in a Series for each set of Value
+	assert.Equal(t, 30, len(Resize(series, time.Duration(0))))
 }
 
 func TestSeriesFunction(t *testing.T) {

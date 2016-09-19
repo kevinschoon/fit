@@ -47,7 +47,7 @@ func TestTCX(t *testing.T) {
 }
 
 func TestTCXLoad(t *testing.T) {
-	data, err := FromDir("test/sample.tcx")
+	data, err := FromDir("test/sample.tcx", "TestData")
 	assert.NoError(t, err)
 	series := data.Load()[0]
 	assert.Equal(t, 1, series.Len())
