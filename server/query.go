@@ -7,6 +7,7 @@ import (
 	"github.com/kevinschoon/gofit/models"
 	"image/color"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -87,16 +88,28 @@ func ChartCfg(series *models.Series, u *url.URL) chart.Config {
 		Height:         5 * vg.Inch,
 	}
 	cfg.XAxis = models.Key(0) // Default
-	cfg.XLabel = "time"
 	name := u.Query().Get("X")
 	if key, ok := series.Keys[name]; ok {
 		cfg.XLabel = name
 		cfg.XAxis = key
 	}
+	if name == "time" {
+		cfg.PlotTime = true
+	}
 	cfg.YAxis = make(map[string]models.Key)
 	for _, name := range StrArray("Y", u) {
 		if key, ok := series.Keys[name]; ok {
 			cfg.YAxis[name] = key
+		}
+	}
+	if w, err := strconv.ParseInt(u.Query().Get("width"), 0, 64); err == nil {
+		if w < 20 { // Prevent potentially horrible DOS
+			cfg.Width = vg.Length(w) * vg.Inch
+		}
+	}
+	if h, err := strconv.ParseInt(u.Query().Get("height"), 0, 64); err == nil {
+		if h < 20 {
+			cfg.Height = vg.Length(h) * vg.Inch
 		}
 	}
 	return cfg

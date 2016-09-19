@@ -21,6 +21,7 @@ type Config struct {
 	YAxis          map[string]models.Key
 	Width          vg.Length
 	Height         vg.Length
+	PlotTime       bool
 }
 
 func getPlot(cfg Config) (*plot.Plot, error) {
@@ -30,29 +31,30 @@ func getPlot(cfg Config) (*plot.Plot, error) {
 	}
 	plt.Legend.Color = cfg.PrimaryColor
 	plt.Legend.Top = true
-	plt.Legend.YOffs = 0.1 * vg.Inch
 	plt.BackgroundColor = cfg.SecondaryColor
 
-	plt.Title.Color = cfg.PrimaryColor
-	plt.Title.Text = cfg.Title
-	plt.Title.Font.Size = 0.5 * vg.Inch
+	//plt.Title.Text = cfg.Title
+	//plt.Title.Color = cfg.PrimaryColor
+	//plt.Title.Font.Size = 0.5 * vg.Inch
 
+	//plt.Y.Label.Text = cfg.YLabel
 	plt.Y.Color = cfg.PrimaryColor
-	plt.Y.Label.Text = cfg.YLabel
 	plt.Y.Label.Color = cfg.PrimaryColor
 	plt.Y.Label.Font.Size = 0.3 * vg.Inch
 	plt.Y.Tick.Color = cfg.PrimaryColor
 	plt.Y.Tick.Label.Font.Size = 0.2 * vg.Inch
 	plt.Y.Tick.Label.Color = cfg.PrimaryColor
 
-	plt.X.Label.Text = cfg.XLabel
+	//plt.X.Label.Text = cfg.XLabel
 	plt.X.Color = cfg.PrimaryColor
 	plt.X.Label.Color = cfg.PrimaryColor
 	plt.X.Label.Font.Size = 0.3 * vg.Inch
 	plt.X.Tick.Color = cfg.PrimaryColor
 	plt.X.Tick.Label.Color = cfg.PrimaryColor
 	plt.X.Tick.Label.Font.Size = 0.2 * vg.Inch
-	plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
+	if cfg.PlotTime {
+		plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
+	}
 	return plt, nil
 }
 
