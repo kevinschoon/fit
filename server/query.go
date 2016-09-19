@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/gonum/plot/vg"
 	"github.com/kevinschoon/gofit/chart"
 	"github.com/kevinschoon/gofit/models"
@@ -13,10 +14,10 @@ import (
 // StartEnd extracts start and end times from a URL
 // Default: 1970 - Now
 func StartEnd(u *url.URL) (start time.Time, end time.Time) {
-	start, _ = time.Parse("2006-Jan-02", u.Query().Get("start"))
-	end, _ = time.Parse("2006-Jan-02", u.Query().Get("end"))
+	start, _ = time.Parse(time.RFC3339, u.Query().Get("start"))
+	end, _ = time.Parse(time.RFC3339, u.Query().Get("end"))
 	if end.IsZero() {
-		end = time.Now()
+		end = time.Now().UTC()
 	}
 	return start, end
 }
@@ -24,7 +25,11 @@ func StartEnd(u *url.URL) (start time.Time, end time.Time) {
 // Aggr extracts an aggregation level from a URL
 // Default: 24 hours
 func Aggr(u *url.URL) (duration time.Duration) {
-	duration, err := time.ParseDuration(u.Query().Get("aggr"))
+	raw := u.Query().Get("aggr")
+	if raw == "none" {
+		return time.Duration(0)
+	}
+	duration, err := time.ParseDuration(raw)
 	if err != nil {
 		duration = 24 * time.Hour
 	}
@@ -78,8 +83,8 @@ func ChartCfg(series *models.Series, u *url.URL) chart.Config {
 		Title:          series.Name,
 		PrimaryColor:   color.White,
 		SecondaryColor: color.Black,
-		Width:          12 * vg.Inch,
-		Height:         12 * vg.Inch,
+		Width:          18 * vg.Inch,
+		Height:         5 * vg.Inch,
 	}
 	cfg.XAxis = models.Key(0) // Default
 	cfg.XLabel = "time"
@@ -97,24 +102,13 @@ func ChartCfg(series *models.Series, u *url.URL) chart.Config {
 	return cfg
 }
 
-/*
-func XY(u *url.URL, collection *models.Collection) (X models.Key, Y models.Key) {
-	X = models.Key(0)
-	Y = models.Key(1)
-	if name := u.Query().Get("x"); name != "" {
-		for i, n := range collection.Names() {
-			if name == n {
-				X = models.Key(i)
-			}
-		}
+// Chart builds the URL for rendering the chart
+func Chart(u *url.URL) string {
+	c := &url.URL{
+		Scheme:   u.Scheme,
+		Host:     u.Host,
+		Path:     fmt.Sprintf("%s/chart", u.Path),
+		RawQuery: u.Query().Encode(),
 	}
-	if name := u.Query().Get("y"); name != "" {
-		for i, n := range collection.Names() {
-			if name == n {
-				Y = models.Key(i)
-			}
-		}
-	}
-	return X, Y
+	return c.String()
 }
-*/

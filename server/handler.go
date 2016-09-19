@@ -2,32 +2,33 @@ package server
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/gorilla/mux"
 	"github.com/kevinschoon/gofit/chart"
 	"github.com/kevinschoon/gofit/database"
 	"github.com/kevinschoon/gofit/models"
-	"time"
 
 	"net/http"
+	"net/url"
 	"text/template"
 )
 
-const (
-	staticDir       string = "www"
-	baseTmpl        string = staticDir + "/base.html"
-	chartTmpl       string = staticDir + "/chart.html"
-	dataTmpl        string = staticDir + "/data.html"
-	panelTmpl       string = staticDir + "/panel.html"
-	collectionsTmpl string = staticDir + "/collections.html"
-)
-
 type Response struct {
-	Title   string
-	Series  []*models.Series
-	Explore bool     // Display Data Explorer
-	Browse  bool     // Display Series Listing
-	Keys    []string // Series Keys to Display
+	Title    string
+	Series   []*models.Series
+	Choices  []*models.Series
+	Explore  bool     // Display Data Explorer
+	Browse   bool     // Display Series Listing
+	Keys     []string // Series Keys to Display
+	ChartURL string   // URL for rendering the chart
+	Query    url.Values
+	DemoMode bool
+	Version  string
 }
+
+// Match checks if the a query string is set to a particular value
+func (r Response) Match(name, value string) bool { return r.Query.Get(name) == value }
 
 // Rows iterates each series for templating
 func (r Response) Rows() [][]string {
@@ -70,7 +71,16 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 
 type Handler struct {
 	db        *database.DB
+	version   string
 	templates []string
+	defaults  Response
+}
+
+func (handler Handler) response() *Response {
+	return &Response{
+		DemoMode: handler.defaults.DemoMode,
+		Version:  handler.defaults.Version,
+	}
 }
 
 func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
@@ -95,10 +105,17 @@ func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	start, end := StartEnd(r.URL)
-	response := &Response{}
+	response := handler.response()
+	choices, err := handler.db.Series()
+	if err != nil {
+		return err
+	}
+	response.Choices = choices
+	response.Query = r.URL.Query()
 	if name, ok := mux.Vars(r)["series"]; ok {
-		response.Title = "Explorer"
+		response.Title = name
 		response.Explore = true
+		response.ChartURL = Chart(r.URL)
 		series, err := handler.db.ReadSeries(name, start, end)
 		if err != nil {
 			return err
@@ -114,10 +131,5 @@ func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
 	}
 	response.Title = "Browse"
 	response.Browse = true
-	series, err := handler.db.Series()
-	if err != nil {
-		return err
-	}
-	response.Series = series
 	return tmpl.Execute(w, response)
 }
