@@ -3,11 +3,14 @@ body {
 }
 
 .options-right {
-  min-height: 200px;
   border-left: 1px solid #ccc;
 }
 
-.collections {
+.panel-body.chart {
+  background-color: #000;
+}
+
+.browse {
   margin-top: 25px;
   text-align: center;
 }
@@ -15,6 +18,7 @@ body {
 .navbar{
   background-color: #222222;
   min-height: 0px !important;
+  padding-top: 2px;
 }
 
 /* Always float the navbar header */

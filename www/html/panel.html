@@ -5,90 +5,32 @@
     <div class="navbar-header">
 
       <a class="navbar-left" href="/">
-        <img height="40px" alt="Brand" src="/static/gopher.png">
+        <img height="40px" alt="Brand" src="/static/images/gopher-fit.png">
       </a>
     </div>
 
     <div class="collapse navbar-collapse" id="navbar-collapse">
       <ul class="nav navbar-nav">
+        {{if .Explore}}
         <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="" aria-haspopup="true" aria-expanded="false"><span class="glyphicon glyphicon-stats"></span> <strong>{{.Title}}</strong><span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="" aria-haspopup="true" aria-expanded="false"><span class="glyphicon glyphicon-stats"></span> 
+            <strong>{{.Title}}</strong>
+            <span class="caret"></span></a>
           <ul class="dropdown-menu">
-            {{range .Series}}
-            <li><a href="/{{.}}">{{.}}</a></li>
+            {{range .Choices}}
+            <li><a href="/{{.Name}}">{{.Name}}</a></li>
             {{end}}
           </ul>
         </li>
+      {{end}}
       </ul>
       <ul class="nav navbar-nav navbar-right">
-        {{if .Explore}}
         <li>
-          <a href="#" role="button" data-toggle="collapse" data-target="#options-panel">
-            <span class="glyphicon glyphicon-cog">Options</span></a>
-        </li>
-        {{end}}
-        <li>
-          <a href="#" role="button" data-toggle="modal" aria-haspopup="true" aria-expanded="false" data-target="#myModal">About</a>
+          <a href="#" role="button" data-toggle="modal" aria-haspopup="true" aria-expanded="false" data-target="#about">About</a>
         </li>
       </ul>
     </div>
   </div>
 </nav>
-{{if .Explore}}
-<div class="collapse" id="options-panel">
-  <div class="panel panel-default">
-    <div class="panel-body">
-      <div class="row">
-        <div class="col-md-8"></div>
-        <div class="col-md-4">
-          <div class="row">
-            <div class="col-md-6" id="daterange">
-              <h4>
-                Time Range
-              </h4>
-              <div class="input-daterange input-group" id="datepicker">
-                <input type="text" class="input-sm form-control" name="start" />
-                <span class="input-group-addon">to</span>
-                <input type="text" class="input-sm form-control" name="end" />
-              </div>
-              </br>
-              <a href="">Last Week</a><br>
-              <a href="">Last Month</a><br>
-              <a href="">Last Year</a>
-            </div>
-            <div class="col-md-6 options-right">
-              <div class="center-block">
-                <h5> Aggregation </h5>
-                <select class="form-control input-sm" id="aggr">
-                  <option>none</option>
-                  <option>days</option>
-                  <option>months</option>
-                  <option>years</option>
-                </select>
-                <h5> X Axis </h5>
-                <select class="form-control input-sm" id="x">
-                  <option>TODO</option>
-                </select>
-                <h5> Y Axis </h5>
-                <select class="form-control input-sm" id="y">
-                  <option>TODO</option>
-                </select>
-              </div>
-            </div>
-            <div class="col-md-12">
-              </br>
-              <div class="btn-group btn-group-justified" role="group" aria-label="...">
-                <div class="btn-group" role="group">
-                  <button type="button" id="submit" class="btn btn-default">Update</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{{end}}
 
 {{end}}

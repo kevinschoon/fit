@@ -3,21 +3,14 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <!--<meta name="viewport" content="width=device-width, initial-scale=1">-->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-
-    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="icon" href="../../favicon.ico">
-
     <title>Fit</title>
-
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/darkly/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/css/bootstrap-datepicker3.standalone.css">
-    <!--<link rel="shortcut icon" href="/static/favicon.ico" />-->
-
-    <link href="/static/css/app.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="static/css/font-awesome.min.css">
+    <link rel="shortcut icon" href="/static/images/gopher-fit.ico" />
   </head>
   <body>
     {{ block "panel" .}}{{end}}
@@ -26,21 +19,17 @@
     {{else}}
     {{ block "browse" .}}{{end}}
     {{end}}
-
     <!-- Modal -->
-    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal fade" id="about" tabindex="-1" role="dialog" aria-labelledby="">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            <h4 class="modal-title" id="myModalLabel">GoFit 0.0.1</h4>
+            <h4 class="modal-title">Fit {{.Version}}</h4>
           </div>
           <div class="modal-body">
-            <h2> GoFit</h2>
-            <p>Distinctio ut praesentium sed est impedit. Eos illo laborum neque esse laboriosam dolor odio rerum. Eum laboriosam eos id repellendus. Dignissimos et incidunt dolorem magni veniam alias id qui. At et laudantium dolore quo qui voluptas qui.</p>
-            <button type="button" class="btn btn-primary btn-sm">
-              <span class="glyphicon glyphicon-star" aria-hidden="true"></span> <a href="https://github.com/kevinschoon/gofit">Github</a>
-            </button>
+            <p>Fit is a tool for reading, manipulating, and exploring time series data.</p>
+            <a href="https://github.com/kevinschoon/gofit"><i class="fa fa-github fa-2x"></i></a>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
@@ -48,15 +37,8 @@
         </div>
       </div>
     </div>
-    <!-- Bootstrap core JavaScript
-      ================================================== -->
-      <!-- Placed at the end of the document so the pages load faster -->
-      <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-      <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
-
-      <!-- Latest compiled and minified JavaScript -->
-      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.6.4/js/bootstrap-datepicker.js"></script>
-      <script src="/static/js/app.js"></script>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/app.js"></script>
   </body>
 </html>
