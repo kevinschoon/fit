@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/jawher/mow.cli"
 	"github.com/kevinschoon/gofit/database"
-	"github.com/kevinschoon/gofit/models/csv"
-	"github.com/kevinschoon/gofit/models/tcx"
+	"github.com/kevinschoon/gofit/loaders"
+	"github.com/kevinschoon/gofit/loaders/csv"
 	"github.com/kevinschoon/gofit/server"
 	"os"
 )
@@ -38,31 +38,29 @@ func Server(cmd *cli.Cmd) {
 // Load ingests data into the database
 func Load(cmd *cli.Cmd) {
 	var (
+		path     = cmd.StringArg("PATH", "", "Path to your raw dataset")
 		name     = cmd.StringOpt("n name", "", "Name for this dataset")
-		dataType = cmd.StringOpt("t type", "", "Type of data to load")
-		dataPath = cmd.StringOpt("p path", "Takeout/", "Path to your raw dataset")
-		dbPath   = cmd.StringOpt("d database", "/tmp/gofit.db", "Path to BoltDB")
-		debug    = cmd.BoolOpt("debug", true, "Enable Debugging")
+		fType    = cmd.StringOpt("t type", "", "Type of data to load")
+		dtIndex  = cmd.IntOpt("dtIndex", 0, "Column to extract time.Time from")
+		dtFormat = cmd.StringOpt("dtFormat", "", "Format to extract time.Time with")
+		values   = cmd.BoolOpt("values", false, "Dump values when printing to stdout")
 	)
 	cmd.Action = func() {
-		db, err := database.New(*dbPath, *debug)
+		opts := &loaders.Options{
+			Name:   *name,
+			Path:   *path,
+			Values: *values,
+			Type:   loaders.FileTypeByName(*fType),
+			CSVOptions: &csv.Options{
+				DTIndex:  *dtIndex,
+				DTFormat: *dtFormat,
+			},
+		}
+		loader, err := loaders.Load(opts)
 		FailOnErr(err)
-		if *dataType == "" || *name == "" {
-			cmd.PrintHelp()
-			os.Exit(1)
-		}
-		switch *dataType {
-		case "tcx":
-			data, err := tcx.FromDir(*dataPath, *name)
-			FailOnErr(err)
-			FailOnErr(db.WriteSeries(data.Load()))
-		case "csv":
-			data, err := csv.FromFile(*dataPath, *name)
-			FailOnErr(err)
-			FailOnErr(db.WriteSeries(data.Load()))
-		default:
-			FailOnErr(fmt.Errorf("Unknown datatype %s", *dataType))
-		}
+		defer loader.Close()()
+		err = loaders.ToStdout(opts, loader)
+		FailOnErr(err)
 	}
 }
 
