@@ -6,7 +6,7 @@ import (
 	"github.com/gonum/plot/plotutil"
 	"github.com/gonum/plot/vg"
 	"github.com/gonum/plot/vg/draw"
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/models"
 	"image/color"
 )
 

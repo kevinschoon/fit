@@ -4,7 +4,7 @@ Reads Garmin TCX data into a Series
 package tcx
 
 import (
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/models"
 	"github.com/kevinschoon/tcx"
 )
 

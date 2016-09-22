@@ -6,7 +6,7 @@ package csv
 import (
 	"bufio"
 	"encoding/csv"
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/models"
 	"io"
 	"strconv"
 	"time"

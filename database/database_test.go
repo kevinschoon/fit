@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/models"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/rand"

@@ -3,10 +3,10 @@ package cmd
 import (
 	"fmt"
 	"github.com/jawher/mow.cli"
-	"github.com/kevinschoon/gofit/database"
-	"github.com/kevinschoon/gofit/loaders"
-	"github.com/kevinschoon/gofit/loaders/csv"
-	"github.com/kevinschoon/gofit/server"
+	"github.com/kevinschoon/fit/database"
+	"github.com/kevinschoon/fit/loaders"
+	"github.com/kevinschoon/fit/loaders/csv"
+	"github.com/kevinschoon/fit/server"
 	"os"
 )
 
@@ -43,9 +43,13 @@ func Load(cmd *cli.Cmd) {
 		fType    = cmd.StringOpt("t type", "", "Type of data to load")
 		dtIndex  = cmd.IntOpt("dtIndex", 0, "Column to extract time.Time from")
 		dtFormat = cmd.StringOpt("dtFormat", "", "Format to extract time.Time with")
-		values   = cmd.BoolOpt("values", false, "Dump values when printing to stdout")
+		values   = cmd.BoolOpt("values", false, "Dump values to stdout")
 	)
 	cmd.Action = func() {
+		if *path == "" {
+			cmd.PrintHelp()
+			os.Exit(1)
+		}
 		opts := &loaders.Options{
 			Name:   *name,
 			Path:   *path,
@@ -65,8 +69,9 @@ func Load(cmd *cli.Cmd) {
 }
 
 func Run() {
-	app := cli.App("gofit", "GoFit!")
-	app.Command("server", "Run the GoFit web UI", Server)
-	app.Command("load", "Load New Data", Load)
+	app := cli.App("fit", "Fit is a toolkit for exploring numerical data")
+	app.Command("server", "Run the Fit web server", Server)
+	app.Command("load", "Load and transform new data", Load)
+	app.Version("v version", FitVersion)
 	app.Run(os.Args)
 }

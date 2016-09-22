@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/kevinschoon/gofit/database"
+	"github.com/kevinschoon/fit/database"
 )
 
 func RunServer(db *database.DB, pattern, path, version string, demo bool) {

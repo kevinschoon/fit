@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 	"github.com/gonum/plot/vg"
-	"github.com/kevinschoon/gofit/chart"
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/chart"
+	"github.com/kevinschoon/fit/models"
 	"image/color"
 	"net/url"
 	"strconv"

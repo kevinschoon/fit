@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/kevinschoon/gofit/chart"
-	"github.com/kevinschoon/gofit/database"
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/chart"
+	"github.com/kevinschoon/fit/database"
+	"github.com/kevinschoon/fit/models"
 
 	"net/http"
 	"net/url"

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/boltdb/bolt"
-	"github.com/kevinschoon/gofit/models"
+	"github.com/kevinschoon/fit/models"
 	"log"
 	"time"
 )

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/kevinschoon/gofit/cmd"
+	"github.com/kevinschoon/fit/cmd"
 )
 
 func main() {
