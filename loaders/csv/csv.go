@@ -7,7 +7,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"github.com/kevinschoon/fit/models"
-	"io"
+	"os"
 	"strconv"
 	"time"
 )
@@ -21,9 +21,9 @@ type Options struct {
 type CSVLoader struct {
 	count   int
 	reader  *csv.Reader
+	file    *os.File
 	keys    models.Keys
 	Options *Options // CSV Options
-	closer  func() error
 }
 
 func (c CSVLoader) Next() ([]models.Value, error) {
@@ -49,18 +49,23 @@ func (c CSVLoader) Next() ([]models.Value, error) {
 
 func (c CSVLoader) Keys() models.Keys { return c.keys }
 
-func (c CSVLoader) Close() func() error {
-	return c.closer
+func (c CSVLoader) Close() error {
+	return c.file.Close()
 }
 
-// New returns a new CSV Loader
-func New(reader io.Reader, closer func() error, opts *Options) (CSVLoader, error) {
+// New creates a new CSVLoader for the path provided
+func New(path string, opts *Options) (CSVLoader, error) {
 	loader := CSVLoader{
 		keys:    make(models.Keys),
 		Options: opts,
-		reader:  csv.NewReader(bufio.NewReader(reader)),
-		closer:  closer,
 	}
+	file, err := os.Open(path)
+	if err != nil {
+		return loader, err
+	}
+	loader.file = file
+	loader.reader = csv.NewReader(bufio.NewReader(file))
+	// Read the first record in the CSV to load column names
 	record, err := loader.reader.Read()
 	if err != nil {
 		return loader, err

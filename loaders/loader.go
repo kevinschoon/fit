@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/kevinschoon/fit/loaders/csv"
 	"github.com/kevinschoon/fit/models"
 	"io"
@@ -44,7 +43,7 @@ type Options struct {
 type Loader interface {
 	Next() ([]models.Value, error)
 	Keys() models.Keys
-	Close() func() error
+	Close() error
 }
 
 func Load(opts *Options) (Loader, error) {
@@ -59,31 +58,22 @@ func Load(opts *Options) (Loader, error) {
 		split = strings.Split(split[len(split)-1], ".")
 		opts.Name = split[0]
 	}
-	fp, err := os.Open(opts.Path)
-	if err != nil {
-		return nil, err
-	}
-	closer := func() error {
-		if err := fp.Close(); err != nil {
-			fmt.Println("Error: ", err)
-			return err
-		}
-		return nil
-	}
-	reader := bufio.NewReader(fp)
 	switch opts.Type {
 	case CSV:
-		return csv.New(reader, closer, opts.CSVOptions)
+		return csv.New(opts.Path, opts.CSVOptions)
 	}
 	return nil, ErrUnknownFileType
 }
 
-func ToStdout(opts *Options, loader Loader) error {
+// Stdout iterates a Loader object until EOF
+// If values is false it will dump an empty Series object
+// if values is true it will dump all values of a series
+func Stdout(name string, values bool, loader Loader) error {
 	writer := bufio.NewWriter(os.Stdout)
 	defer writer.Flush()
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", " ")
-	if opts.Values {
+	if values {
 		for {
 			values, err := loader.Next()
 			if err == io.EOF {
@@ -99,6 +89,6 @@ func ToStdout(opts *Options, loader Loader) error {
 		return nil
 	}
 	series := models.NewSeries(loader.Keys().Names())
-	series.Name = opts.Name
+	series.Name = name
 	return encoder.Encode(series)
 }

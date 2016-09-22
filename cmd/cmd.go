@@ -40,21 +40,18 @@ func Load(cmd *cli.Cmd) {
 	var (
 		path     = cmd.StringArg("PATH", "", "Path to your raw dataset")
 		name     = cmd.StringOpt("n name", "", "Name for this dataset")
-		fType    = cmd.StringOpt("t type", "", "Type of data to load")
+		ft       = cmd.StringOpt("t type", "", "Type of data to load")
 		dtIndex  = cmd.IntOpt("dtIndex", 0, "Column to extract time.Time from")
 		dtFormat = cmd.StringOpt("dtFormat", "", "Format to extract time.Time with")
-		values   = cmd.BoolOpt("values", false, "Dump values to stdout")
+		//server   = cmd.StringOpt("server", "http://localhost:8000", "Fit API server")
+		series = cmd.BoolOpt("series", false, "Dump series information to stdout")
+		values = cmd.BoolOpt("values", false, "Dump values information to stdout")
 	)
 	cmd.Action = func() {
-		if *path == "" {
-			cmd.PrintHelp()
-			os.Exit(1)
-		}
 		opts := &loaders.Options{
-			Name:   *name,
-			Path:   *path,
-			Values: *values,
-			Type:   loaders.FileTypeByName(*fType),
+			Name: *name,
+			Path: *path,
+			Type: loaders.FileTypeByName(*ft),
 			CSVOptions: &csv.Options{
 				DTIndex:  *dtIndex,
 				DTFormat: *dtFormat,
@@ -62,9 +59,13 @@ func Load(cmd *cli.Cmd) {
 		}
 		loader, err := loaders.Load(opts)
 		FailOnErr(err)
-		defer loader.Close()()
-		err = loaders.ToStdout(opts, loader)
-		FailOnErr(err)
+		defer loader.Close()
+		switch {
+		case *series:
+			FailOnErr(loaders.Stdout(opts.Name, false, loader))
+		case *values:
+			FailOnErr(loaders.Stdout(opts.Name, true, loader))
+		}
 	}
 }
 
