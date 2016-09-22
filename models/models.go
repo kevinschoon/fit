@@ -10,6 +10,17 @@ import (
 // type and to represent the index of a set of values
 type Key int
 
+// Keys hold the name and index for Value
+type Keys map[string]Key
+
+func (k Keys) Names() []string {
+	names := make([]string, len(k))
+	for name, key := range k {
+		names[int(key)] = name
+	}
+	return names
+}
+
 // Value represents a single datapoint
 type Value float64
 
@@ -22,7 +33,7 @@ func (value Value) String() string {
 }
 
 func (value Value) Time() time.Time {
-	return time.Unix(int64(value), 64)
+	return time.Unix(int64(value), 64).UTC()
 }
 
 // Sortable implements the sort.Sort interface for an array of Value
@@ -41,7 +52,7 @@ type Series struct {
 	values Values `json:"-"` // Arbitrarily sized collection of values
 	index  int
 	Name   string
-	Keys   map[string]Key
+	Keys   Keys
 }
 
 // Implements interface for sort.Sort
@@ -92,13 +103,13 @@ func (series Series) Values(key Key) []Value {
 
 // Start returns the time of the first value within the series
 func (series Series) Start() time.Time {
-	return time.Unix(int64(series.Value(0, "time")), 64)
+	return series.Value(0, "time").Time()
 }
 
 // End returns the time of the last value within the series
 func (series Series) End() time.Time {
 	if len(series.values) >= 1 {
-		return time.Unix(int64(series.Value(len(series.values)-1, "time")), 64)
+		return series.Value(len(series.values)-1, "time").Time()
 	}
 	return series.Start()
 }
@@ -200,15 +211,6 @@ func Copy(in *Series) *Series {
 		series.Keys[name] = Key(int(key))
 	}
 	return series
-}
-
-// Keys returns an ordered array of Series key names
-func Keys(in *Series) []string {
-	out := make([]string, len(in.Keys))
-	for key, value := range in.Keys {
-		out[int(value)] = key
-	}
-	return out
 }
 
 // Select returns all of the values for a given
