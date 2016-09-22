@@ -68,7 +68,7 @@ func New(cfg Config, series []*models.Series) (vg.CanvasWriterTo, error) {
 	// ...string,XYer
 	data := make([]interface{}, 0)
 	xValues := models.Select(cfg.XAxis, series)
-	for _, name := range models.Keys(series[0]) {
+	for _, name := range series[0].Keys.Names() {
 		if y, ok := cfg.YAxis[name]; ok {
 			xys := make(plotter.XYs, len(xValues))
 			for i, value := range models.Select(y, series) {

@@ -122,7 +122,7 @@ func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
 		}
 		response.Keys = StrArray("keys", r.URL)
 		if len(response.Keys) < 1 {
-			response.Keys = models.Keys(series[0])
+			response.Keys = series[0].Keys.Names()
 		}
 		series = models.Resize(series, Aggr(r.URL))
 		series = models.Apply(series, Fn(r.URL))
