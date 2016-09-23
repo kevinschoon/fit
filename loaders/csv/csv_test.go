@@ -27,7 +27,9 @@ dt,LandAverageTemperature,LandAverageTemperatureUncertainty,LandMaxTemperature,L
 `
 
 func TestCSV(t *testing.T) {
-	c, err := New(strings.NewReader(Simple), nil, &Options{})
+	c, err := New("", &Options{
+		Reader: strings.NewReader(Simple),
+	})
 	assert.NoError(t, err)
 	values, err := c.Next()
 	assert.NoError(t, err)
@@ -51,7 +53,11 @@ func TestCSV(t *testing.T) {
 }
 
 func TestCSVCustomDate(t *testing.T) {
-	c, err := New(strings.NewReader(CustomDate), nil, &Options{DTIndex: 0, DTFormat: "2006-01-02"})
+	c, err := New("", &Options{
+		DTIndex:  0,
+		DTFormat: "2006-01-02",
+		Reader:   strings.NewReader(CustomDate),
+	})
 	assert.NoError(t, err)
 	values, err := c.Next()
 	assert.NoError(t, err)

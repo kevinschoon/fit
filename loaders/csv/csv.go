@@ -7,14 +7,16 @@ import (
 	"bufio"
 	"encoding/csv"
 	"github.com/kevinschoon/fit/models"
+	"io"
 	"os"
 	"strconv"
 	"time"
 )
 
 type Options struct {
-	DTFormat string // DateTime Format
-	DTIndex  int    // Record index to parse the date from
+	DTFormat string    // DateTime Format
+	DTIndex  int       // Record index to parse the date from
+	Reader   io.Reader // Optionally directly pass an io.Reader
 }
 
 // CSVLoader implements the Loader interface
@@ -59,12 +61,16 @@ func New(path string, opts *Options) (CSVLoader, error) {
 		keys:    make(models.Keys),
 		Options: opts,
 	}
-	file, err := os.Open(path)
-	if err != nil {
-		return loader, err
+	if opts.Reader == nil {
+		file, err := os.Open(path)
+		if err != nil {
+			return loader, err
+		}
+		loader.file = file
+		loader.reader = csv.NewReader(bufio.NewReader(file))
+	} else {
+		loader.reader = csv.NewReader(opts.Reader)
 	}
-	loader.file = file
-	loader.reader = csv.NewReader(bufio.NewReader(file))
 	// Read the first record in the CSV to load column names
 	record, err := loader.reader.Read()
 	if err != nil {
