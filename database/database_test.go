@@ -12,19 +12,37 @@ import (
 
 var cleanup bool = false
 
-func Series(count int) []*models.Series {
+func Series(count int) ([]*models.Series, float64, float64) {
 	series := make([]*models.Series, 1)
 	series[0] = models.NewSeries([]string{"V1", "V2"})
 	series[0].Name = "TestSeries"
 	start := time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
+	V1Total := 0.0 // Sum total of values
+	V2Total := 0.0
 	for i := 0; i < count; i++ {
+		v1 := rand.Float64()
+		v2 := rand.Float64()
+		V1Total += v1
+		V2Total += v2
 		series[0].Add(start, []models.Value{
-			models.Value(rand.Float64()),
-			models.Value(rand.Float64()),
+			models.Value(v1),
+			models.Value(v2),
 		})
 		start = start.Add(1 * time.Second)
 	}
-	return series
+	return series, V1Total, V2Total
+}
+
+func Values(count, width int) models.Values {
+	values := make(models.Values, count)
+	for i := 0; i < count; i++ {
+		vals := make([]models.Value, width)
+		for v := 0; v < width; v++ {
+			vals[v] = models.Value(rand.Float64())
+		}
+		values[i] = vals
+	}
+	return values
 }
 
 func newDB(t *testing.T) (*DB, func()) {
@@ -46,7 +64,7 @@ func newDB(t *testing.T) (*DB, func()) {
 func TestDBSeriesReadWrite(t *testing.T) {
 	db, cleanup := newDB(t)
 	defer cleanup()
-	series := Series(10000)
+	series, _, _ := Series(10000)
 	assert.Equal(t, 1, len(series))
 	series[0].Name = "SeriesReadWrite"
 	assert.Equal(t, 3, len(series[0].Keys))
@@ -64,6 +82,27 @@ func TestDBSeriesReadWrite(t *testing.T) {
 	assert.Equal(t, models.Key(0), series[0].Keys["time"])
 	assert.Equal(t, models.Key(1), series[0].Keys["V1"])
 	assert.Equal(t, models.Key(2), series[0].Keys["V2"])
+}
+
+func TestDBValuesReadWrite(t *testing.T) {
+	db, cleanup := newDB(t)
+	defer cleanup()
+	count := 5
+	width := 10
+	start := time.Now()
+	values := Values(count, width)
+	assert.NoError(t, db.WriteValues("ValuesReadWrite", start, values))
+	ch := make(chan models.Values, 0)
+	var err error
+	go func() {
+		err = db.ReadValues("ValuesReadWrite", start, time.Now(), ch)
+	}()
+	v := <-ch
+	for i, value := range v {
+		for w := 0; w < width; w++ {
+			assert.Equal(t, value[w].Float64(), values[i][w].Float64())
+		}
+	}
 }
 
 func init() {

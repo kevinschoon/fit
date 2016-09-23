@@ -50,7 +50,7 @@ func (db *DB) WriteSeries(series []*models.Series) error {
 	series = models.Resize(series, 1*time.Second)
 	// Get the name of the series
 	name := series[0].Name
-	return db.bolt.Update(func(tx *bolt.Tx) error {
+	if err := db.bolt.Update(func(tx *bolt.Tx) error {
 		// Create the models bucket if it doesn't exist yet
 		b, _ := tx.CreateBucketIfNotExists([]byte("models"))
 		// Marshal the series without it's values to JSON
@@ -59,39 +59,51 @@ func (db *DB) WriteSeries(series []*models.Series) error {
 			return err
 		}
 		// Series model is stored in a key with the same name
-		if err := b.Put([]byte(name), raw); err != nil {
+		return b.Put([]byte(name), raw)
+	}); err != nil {
+		return err
+	}
+	// Persist all values in the series
+	// Series values are stored in a bucket $SERIES_data
+	bucket := fmt.Sprintf("%s_data", name)
+	fmt.Println(bucket)
+	for _, s := range series {
+		if err := db.WriteValues(bucket, s.Start(), s.Dump()); err != nil {
 			return err
 		}
-		// Get the bucket for storing Series data
-		b, err = tx.CreateBucketIfNotExists([]byte(fmt.Sprintf("%s_data", name)))
+	}
+	return nil
+}
+
+// WriteValues persists series Values to the database
+func (db *DB) WriteValues(name string, start time.Time, values models.Values) error {
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		// Create a new values bucket if it does not exist
+		b, err := tx.CreateBucketIfNotExists([]byte(name))
 		// Possible error if the key is invalid
 		if err != nil {
 			return err
 		}
-		for _, s := range series {
-			// Dump all of the Values in the series and Marshal to JSON
-			// TODO: Serialize to something faster/more efficent than JSON
-			raw, err := json.Marshal(s.Dump())
-			if err != nil {
-				return err
-			}
-			// Values for each Series are written to a key
-			// with a timestamp corresponding to the time
-			// of the first set of Values for this Series
-			if err := b.Put([]byte(s.Start().Format(time.RFC3339)), raw); err != nil {
-				return err
-			}
-			log.Printf("WRITE [%s] - (%s - %s)", s.Name, s.Start().String(), s.End().String())
+		// Marshal all Values to JSON
+		// TODO: Serialize to something faster/more efficent than JSON
+		raw, err := json.Marshal(values)
+		if err != nil {
+			return err
 		}
-		return nil
+		// Values are written to a key with a timestamp corresponding
+		// to the start time provided. When called by the WriteSeries
+		// function this will be the start time of the Series.
+		return b.Put([]byte(start.Format(time.RFC3339)), raw)
 	})
 }
 
 // ReadSeries reads a Series from the database
+// ALL values must be capable of fitting in memory
 func (db *DB) ReadSeries(name string, start, end time.Time) (series []*models.Series, err error) {
 	log.Printf("READ [%s] - (%s-%s)", name, start.String(), end.String())
-	err = db.bolt.View(func(tx *bolt.Tx) error {
-		// Get the models bucket
+	template := &models.Series{}
+	// Attempt to read a series object with the provided name
+	if err := db.bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("models"))
 		if b == nil {
 			// No Series have been saved
@@ -102,13 +114,40 @@ func (db *DB) ReadSeries(name string, start, end time.Time) (series []*models.Se
 			// Series with the provided name was not found
 			return ErrSeriesNotFound
 		}
-		// Unmarshal the series without data
-		s := &models.Series{}
-		if err = json.Unmarshal(raw, s); err != nil {
-			return err
+		// Unmarshal the series without data to the "template" Series
+		return json.Unmarshal(raw, template)
+	}); err != nil {
+		return series, err
+	}
+	// Create an unbuffered channel
+	ch := make(chan models.Values, 0)
+	// ReadValues in a seperate routine
+	go func() {
+		// Set err to the result of ReadValues
+		err = db.ReadValues(fmt.Sprintf("%s_data", name), start, end, ch)
+	}()
+	// Block until all values have been read
+	for {
+		if values, ok := <-ch; ok {
+			// Create a new series for each set of values
+			s := models.Copy(template)
+			// Import the values into the series
+			s.Import(values)
+			// Add the series to array
+			series = append(series, s)
+		} else { // Channel was closed
+			break
 		}
+	}
+	return series, err
+}
+
+// ReadValues returns values within the requested range from the database
+func (db *DB) ReadValues(name string, start, end time.Time, ch chan models.Values) error {
+	defer close(ch) // Close the channel if there is an error or returned normally
+	return db.bolt.View(func(tx *bolt.Tx) error {
 		// Possible error if key is not valid
-		b = tx.Bucket([]byte(fmt.Sprintf("%s_data", s.Name)))
+		b := tx.Bucket([]byte(name))
 		if b == nil {
 			// Series has no data
 			return ErrSeriesNoData
@@ -118,8 +157,6 @@ func (db *DB) ReadSeries(name string, start, end time.Time) (series []*models.Se
 		// https://github.com/boltdb/bolt#range-scans
 		min, max := []byte(start.Format(time.RFC3339)), []byte(end.Format(time.RFC3339))
 		for k, v := cursor.Seek(min); k != nil && bytes.Compare(k, max) <= 0; k, v = cursor.Next() {
-			// Shallow copy loaded Series model
-			s = models.Copy(s)
 			// Each set of values is put in a seperate Series
 			// Series can be Resized together by the caller
 			// Create an empty [][]Value container
@@ -127,17 +164,11 @@ func (db *DB) ReadSeries(name string, start, end time.Time) (series []*models.Se
 			if err := json.Unmarshal(v, &values); err != nil {
 				return err
 			}
-			// Import all the loaded values to the Series
-			s.Import(values)
-			// Append this series to the array
-			series = append(series, s)
-		}
-		if len(series) == 0 {
-			return ErrSeriesNotFound
+			// Send the values back
+			ch <- values
 		}
 		return nil
 	})
-	return series, err
 }
 
 func (db *DB) Close() {
