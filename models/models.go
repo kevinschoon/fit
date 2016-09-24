@@ -149,8 +149,9 @@ func (series *Series) Import(values Values) {
 }
 
 // New series creates a new Series
-func NewSeries(columns []string) *Series {
+func NewSeries(name string, columns []string) *Series {
 	series := &Series{
+		Name: name,
 		Keys: map[string]Key{
 			"time": Key(0),
 		},

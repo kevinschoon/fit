@@ -9,7 +9,7 @@ import (
 )
 
 func TestSeriesSort(t *testing.T) {
-	series := NewSeries([]string{"V1", "V2"})
+	series := NewSeries("TestSeriesSort", []string{"V1", "V2"})
 	series.Add(time.Now().AddDate(-1, 0, 0), []Value{Value(2.0), Value(1.0)})
 	series.Add(time.Now(), []Value{Value(1.0), Value(2.0)})
 	assert.Equal(t, Value(2.0), series.Value(0, "V1"))
@@ -24,7 +24,7 @@ func TestSeriesSort(t *testing.T) {
 }
 
 func TestSeriesExists(t *testing.T) {
-	series := NewSeries([]string{"V1"})
+	series := NewSeries("TestSeriesExists", []string{"V1"})
 	series.Add(time.Now(), []Value{Value(1.0)})
 	series.Add(time.Now(), []Value{Value(2.0)})
 	series.Add(time.Now(), []Value{Value(1.0)})
@@ -36,8 +36,8 @@ func TestSeriesExists(t *testing.T) {
 	assert.False(t, series.Exists(3, Key(1), true))
 }
 
-func TestNext(t *testing.T) {
-	series := NewSeries([]string{"V1"})
+func TestSeriesNext(t *testing.T) {
+	series := NewSeries("TestSeriesNext", []string{"V1"})
 	for i := 0; i < 10; i++ {
 		series.Add(time.Now(), []Value{Value(rand.Float64())})
 	}
@@ -49,10 +49,10 @@ func TestNext(t *testing.T) {
 	assert.Equal(t, 0, series.index)
 }
 
-func TestResize(t *testing.T) {
+func TestSeriesResize(t *testing.T) {
 	series := make([]*Series, 1)
 	start := time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series[0] = NewSeries([]string{"V1", "V2"})
+	series[0] = NewSeries("TestSeriesResize", []string{"V1", "V2"})
 	for i := 0; i < 60; i++ {
 		series[0].Add(start, []Value{
 			Value(rand.Float64()),
@@ -77,7 +77,7 @@ func TestResize(t *testing.T) {
 	series = make([]*Series, 24)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
 	for s := 0; s < 24; s++ {
-		series[s] = NewSeries([]string{"V1", "V2"})
+		series[s] = NewSeries("TestSeriesResize", []string{"V1", "V2"})
 		for i := 0; i < 3600; i++ {
 			series[s].Add(start, []Value{
 				Value(rand.Float64()),
@@ -95,7 +95,7 @@ func TestResize(t *testing.T) {
 	// Single large series
 	series = make([]*Series, 1)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series[0] = NewSeries([]string{"V1", "V2"})
+	series[0] = NewSeries("TestSeriesResize", []string{"V1", "V2"})
 	for i := 0; i < 86400; i++ {
 		series[0].Add(start, []Value{
 			Value(rand.Float64()),
@@ -108,7 +108,7 @@ func TestResize(t *testing.T) {
 	// Random unsorted times
 	series = make([]*Series, 1)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series[0] = NewSeries([]string{"V1", "V2"})
+	series[0] = NewSeries("TestSeriesResize", []string{"V1", "V2"})
 	for i := 0; i < 30; i++ {
 		series[0].Add(start, []Value{
 			Value(rand.Float64()),
@@ -122,7 +122,7 @@ func TestResize(t *testing.T) {
 	// Single series with identical timestamps
 	series = make([]*Series, 1)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series[0] = NewSeries([]string{"V1", "V2"})
+	series[0] = NewSeries("TestSeriesResize", []string{"V1", "V2"})
 	for i := 0; i < 30; i++ {
 		series[0].Add(start, []Value{
 			Value(rand.Float64()),
@@ -135,7 +135,7 @@ func TestResize(t *testing.T) {
 	// Series with timestamps before 1970 Epoch
 	series = make([]*Series, 1)
 	start = time.Date(1742, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series[0] = NewSeries([]string{"V1", "V2"})
+	series[0] = NewSeries("TestSeriesResize", []string{"V1", "V2"})
 	for i := 0; i < 10; i++ {
 		series[0].Add(start, []Value{
 			Value(rand.Float64()),
@@ -154,7 +154,7 @@ func TestSeriesFunction(t *testing.T) {
 	start := time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
 	// Add 1000 1 minute intervals
 	for s := 0; s < 10; s++ {
-		series[s] = NewSeries([]string{"V1", "V2"})
+		series[s] = NewSeries("TestSeriesFunction", []string{"V1", "V2"})
 		for i := 0; i < 100; i++ {
 			series[s].Add(start, []Value{
 				Value(1.0),
@@ -179,7 +179,7 @@ func TestSeriesFunction(t *testing.T) {
 	}
 	series = make([]*Series, 1)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series = []*Series{NewSeries([]string{"V1"})}
+	series = []*Series{NewSeries("TestSeriesFunction", []string{"V1"})}
 	series[0].Add(start, []Value{
 		Value(1.2),
 	})
@@ -205,7 +205,7 @@ func TestSeriesFunction(t *testing.T) {
 	// Test with missing data
 	series = make([]*Series, 1)
 	start = time.Date(2016, time.Month(1), 1, 0, 0, 0, 0, time.UTC)
-	series = []*Series{NewSeries([]string{"V1", "V2"})}
+	series = []*Series{NewSeries("TestSeriesFunction", []string{"V1", "V2"})}
 	series[0].Add(start, []Value{
 		Value(1.2),
 		Value(1.0),
