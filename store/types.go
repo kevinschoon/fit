@@ -1,10 +1,13 @@
 package store
 
+import mtx "github.com/gonum/matrix/mat64"
+
 // Dataset consists of a name and
 // an ordered array of column names
 type Dataset struct {
-	Name    string
-	Columns []string
+	Name    string     // Name of this dataset
+	Columns []string   // Ordered array of cols
+	Mtx     *mtx.Dense `json:"-"` // Dense Matrix contains all values in the dataset
 }
 
 // CPos returns the position of a column

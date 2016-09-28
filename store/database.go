@@ -58,32 +58,32 @@ func (db *DB) Datasets() (datasets []*Dataset, err error) {
 	return datasets, err
 }
 
-func (db *DB) Write(dataset *Dataset, m *mtx.Dense) (err error) {
+func (db *DB) Write(ds *Dataset) (err error) {
 	return db.bolt.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("datasets"))
 		if err != nil {
 			return err
 		}
-		raw, err := json.Marshal(dataset)
+		raw, err := json.Marshal(ds)
 		if err != nil {
 			return err
 		}
-		if err = b.Put([]byte(dataset.Name), raw); err != nil {
+		if err = b.Put([]byte(ds.Name), raw); err != nil {
 			return err
 		}
 		b, err = tx.CreateBucketIfNotExists([]byte("matricies"))
 		if err != nil {
 			return err
 		}
-		raw, err = m.MarshalBinary()
+		raw, err = ds.Mtx.MarshalBinary()
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte(dataset.Name), raw)
+		return b.Put([]byte(ds.Name), raw)
 	})
 }
 
-func (db *DB) Read(name string) (ds *Dataset, m *mtx.Dense, err error) {
+func (db *DB) Read(name string) (ds *Dataset, err error) {
 	err = db.bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("datasets"))
 		if b == nil { // No datasets have been saved
@@ -105,54 +105,48 @@ func (db *DB) Read(name string) (ds *Dataset, m *mtx.Dense, err error) {
 		if raw == nil {
 			return ErrNotFound
 		}
-		m = mtx.NewDense(0, 0, nil)
-		return m.UnmarshalBinary(raw)
+		ds.Mtx = mtx.NewDense(0, 0, nil)
+		return ds.Mtx.UnmarshalBinary(raw)
 	})
-	return ds, m, err
+	return ds, err
 }
 
-// TODO TODO TODO TODO TODO TODO TODO TODO TODO
-func (db *DB) Query(queries ...*Query) (*Dataset, *mtx.Dense, error) {
+func (db *DB) Query(queries ...*Query) (*Dataset, error) {
 	var (
-		d       *Dataset // Prev dataset
-		ds      *Dataset // New dataset
-		other   *mtx.Dense
-		mx      *mtx.Dense
-		vectors []*mtx.Vector
-		rows    int
-		cols    int
-		err     error
+		rows int // Row count for new dataset
+		cols int // Col count for new dataset
 	)
-	// The resulting dataset
-	ds = &Dataset{
+	// The new resulting dataset
+	ds := &Dataset{
 		Name:    "QueryResult",
 		Columns: make([]string, 0),
 	}
 	// Empty array of Vectors where each
 	// is a column from the queries
-	vectors = make([]*mtx.Vector, 0)
+	vectors := make([]*mtx.Vector, 0)
 	// Range each query
 	for _, query := range queries {
-		d, other, err = db.Read(query.Name)
+		// Query for the other dataset
+		other, err := db.Read(query.Name)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		// Resulting matrix must have the sum of
+		// Resulting matrix should have the sum of
 		// the number of rows from each matrix that
 		// is queried
-		r, _ := other.Dims()
+		r, _ := other.Mtx.Dims()
 		rows += r
 		// Range each column in the query
 		for _, name := range query.Columns {
 			// Get the position (index) of the column
-			pos := d.CPos(name)
+			pos := other.CPos(name)
 			// If the returned position is a negative
 			// number the column does not exist
 			if pos < 0 {
-				return nil, nil, ErrNotFound
+				return nil, ErrNotFound
 			}
 			// Append the column to vectors array
-			vectors = append(vectors, other.ColView(pos))
+			vectors = append(vectors, other.Mtx.ColView(pos))
 			// Add the column name to the resulting dataset
 			ds.Columns = append(ds.Columns, name)
 		}
@@ -161,16 +155,16 @@ func (db *DB) Query(queries ...*Query) (*Dataset, *mtx.Dense, error) {
 	// the amount that were queried for
 	cols = len(vectors)
 	// Create a new matrix zeroed Matrix
-	mx = mtx.NewDense(rows, cols, nil)
+	ds.Mtx = mtx.NewDense(rows, cols, nil)
 	// Fill the matrix with values from each column vector
 	for i := 0; i < rows; i++ {
 		for j := 0; j < cols; j++ {
 			if vectors[j].Len() > i {
-				mx.Set(i, j, vectors[j].At(i, 0))
-			}
+				ds.Mtx.Set(i, j, vectors[j].At(i, 0))
+			} // Zeros are left for missing data
 		}
 	}
-	return ds, mx, nil
+	return ds, nil
 }
 
 func (db *DB) Close() {
