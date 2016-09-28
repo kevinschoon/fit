@@ -2,12 +2,12 @@ package server
 
 import (
 	"fmt"
-	"time"
+	//"time"
 
-	"github.com/gorilla/mux"
-	"github.com/kevinschoon/fit/chart"
-	"github.com/kevinschoon/fit/database"
-	"github.com/kevinschoon/fit/models"
+	//"github.com/gorilla/mux"
+	//"github.com/kevinschoon/fit/chart"
+	//mtx "github.com/gonum/matrix/mat64"
+	"github.com/kevinschoon/fit/store"
 
 	"net/http"
 	"net/url"
@@ -16,35 +16,14 @@ import (
 
 type Response struct {
 	Title    string
-	Series   []*models.Series
-	Choices  []*models.Series
 	Explore  bool     // Display Data Explorer
 	Browse   bool     // Display Series Listing
 	Keys     []string // Series Keys to Display
 	ChartURL string   // URL for rendering the chart
+	Datasets []*store.Dataset
 	Query    url.Values
 	DemoMode bool
 	Version  string
-}
-
-// Match checks if the a query string is set to a particular value
-func (r Response) Match(name, value string) bool { return r.Query.Get(name) == value }
-
-// Rows iterates each series for templating
-func (r Response) Rows() [][]string {
-	rows := make([][]string, len(r.Series))
-	for s, series := range r.Series {
-		rows[s] = make([]string, len(r.Keys))
-		for k, key := range r.Keys {
-			// Only show a single level of value since these
-			// series should already be aggregated
-			rows[s][k] = series.Value(0, key).String()
-			if key == "time" {
-				rows[s][k] = series.Value(0, key).Time().Format(time.RFC3339)
-			}
-		}
-	}
-	return rows
 }
 
 type ErrorHandler func(http.ResponseWriter, *http.Request) error
@@ -60,7 +39,7 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		case template.ExecError:
 		default:
 			switch err {
-			case database.ErrSeriesNotFound:
+			case store.ErrNotFound:
 				http.NotFound(w, r)
 			default:
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -70,7 +49,7 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 }
 
 type Handler struct {
-	db        *database.DB
+	db        *store.DB
 	version   string
 	templates []string
 	defaults  Response
@@ -84,19 +63,21 @@ func (handler Handler) response() *Response {
 }
 
 func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
-	start, end := StartEnd(r.URL)
-	series, err := handler.db.ReadSeries(mux.Vars(r)["series"], start, end)
-	if err != nil {
-		return err
-	}
-	series = models.Resize(series, Aggr(r.URL))
-	series = models.Apply(series, Fn(r.URL))
-	canvas, err := chart.New(ChartCfg(series[0], r.URL), series)
-	if err != nil {
-		return err
-	}
-	_, err = canvas.WriteTo(w)
-	return err
+	/*
+		start, end := StartEnd(r.URL)
+		series, err := handler.db.ReadSeries(mux.Vars(r)["series"], start, end)
+		if err != nil {
+			return err
+		}
+		series = models.Resize(series, Aggr(r.URL))
+		series = models.Apply(series, Fn(r.URL))
+		canvas, err := chart.New(ChartCfg(series[0], r.URL), series)
+		if err != nil {
+			return err
+		}
+		_, err = canvas.WriteTo(w)
+	*/
+	return nil
 }
 
 func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
@@ -104,17 +85,32 @@ func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	start, end := StartEnd(r.URL)
 	response := handler.response()
-	choices, err := handler.db.Series()
+	datasets, err := handler.db.Datasets()
 	if err != nil {
 		return err
 	}
-	response.Choices = choices
+	response.Datasets = datasets
 	response.Query = r.URL.Query()
-	if name, ok := mux.Vars(r)["series"]; ok {
-		response.Title = name
-		response.Explore = true
+	response.Title = "Browse"
+	response.Browse = true
+	return tmpl.Execute(w, response)
+}
+
+func (handler Handler) Explore(w http.ResponseWriter, r *http.Request) error {
+	tmpl, err := template.ParseFiles(handler.templates...)
+	if err != nil {
+		return err
+	}
+	response := handler.response()
+	datasets, err := handler.db.Datasets()
+	if err != nil {
+		return err
+	}
+	response.Datasets = datasets
+	response.Query = r.URL.Query()
+	response.Explore = true
+	/*
 		response.ChartURL = Chart(r.URL)
 		series, err := handler.db.ReadSeries(name, start, end)
 		if err != nil {
@@ -128,8 +124,8 @@ func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
 		series = models.Apply(series, Fn(r.URL))
 		response.Series = series
 		return tmpl.Execute(w, response)
-	}
-	response.Title = "Browse"
-	response.Browse = true
+		response.Title = "Browse"
+		response.Browse = true
+	*/
 	return tmpl.Execute(w, response)
 }

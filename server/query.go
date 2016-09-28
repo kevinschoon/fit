@@ -2,12 +2,12 @@ package server
 
 import (
 	"fmt"
-	"github.com/gonum/plot/vg"
-	"github.com/kevinschoon/fit/chart"
-	"github.com/kevinschoon/fit/models"
-	"image/color"
+	//"github.com/gonum/plot/vg"
+	//"github.com/kevinschoon/fit/chart"
+	//"github.com/kevinschoon/fit/models"
+	//"image/color"
 	"net/url"
-	"strconv"
+	//"strconv"
 	"strings"
 	"time"
 )
@@ -62,7 +62,7 @@ func StrArray(name string, u *url.URL) []string {
 }
 
 // Fn extracts a fuction from the URL
-// Default: Avg
+/* Default: Avg
 func Fn(u *url.URL) models.Function {
 	switch u.Query().Get("fn") {
 	case "sum":
@@ -77,8 +77,9 @@ func Fn(u *url.URL) models.Function {
 		return models.Function(models.Avg)
 	}
 }
+*/
 
-// ChartCfg extracts a charting configuration from the URL
+/* ChartCfg extracts a charting configuration from the URL
 func ChartCfg(series *models.Series, u *url.URL) chart.Config {
 	cfg := chart.Config{
 		Title:          series.Name,
@@ -114,7 +115,7 @@ func ChartCfg(series *models.Series, u *url.URL) chart.Config {
 	}
 	return cfg
 }
-
+*/
 // Chart builds the URL for rendering the chart
 func Chart(u *url.URL) string {
 	c := &url.URL{

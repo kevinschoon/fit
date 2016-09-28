@@ -1,12 +1,12 @@
 package chart
 
+/*
 import (
 	"github.com/gonum/plot"
 	"github.com/gonum/plot/plotter"
 	"github.com/gonum/plot/plotutil"
 	"github.com/gonum/plot/vg"
 	"github.com/gonum/plot/vg/draw"
-	"github.com/kevinschoon/fit/models"
 	"image/color"
 )
 
@@ -90,3 +90,4 @@ func New(cfg Config, series []*models.Series) (vg.CanvasWriterTo, error) {
 	plt.Draw(draw.New(canvas))
 	return canvas, nil
 }
+*/
