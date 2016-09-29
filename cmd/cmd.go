@@ -1,16 +1,27 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	mtx "github.com/gonum/matrix/mat64"
+	"github.com/gosuri/uitable"
 	"github.com/jawher/mow.cli"
 	"github.com/kevinschoon/fit/loader"
+	"github.com/kevinschoon/fit/parser"
 	"github.com/kevinschoon/fit/server"
 	"github.com/kevinschoon/fit/store"
 	"os"
 )
 
 const FitVersion string = "0.0.1"
+
+var (
+	app = cli.App("fit", "Fit is a toolkit for exploring, extracting, and transforming datasets")
+
+	dbPath  = app.StringOpt("d db", "/tmp/fit.db", "Path to a BoltDB database")
+	asHuman = app.BoolOpt("h human", true, "output data as human readable text")
+	asJSON  = app.BoolOpt("j json", false, "output data in JSON format")
+)
 
 func FailOnErr(err error) {
 	if err != nil {
@@ -19,80 +30,99 @@ func FailOnErr(err error) {
 	}
 }
 
-// Server starts the HTTP server
-func Server(cmd *cli.Cmd) {
-	var (
-		pattern = cmd.StringOpt("pattern", "127.0.0.1:8000", "IP and port pattern to listen on")
-		path    = cmd.StringOpt("p path", "/tmp/fit.db", "Path to BoltDB")
-		static  = cmd.StringOpt("static", "./www", "Path to static assets")
-		demo    = cmd.BoolOpt("demo", false, "Run in Demo Mode")
-	)
-	cmd.Action = func() {
-		db, err := store.NewDB(*path)
-		FailOnErr(err)
-		server.RunServer(db, *pattern, *static, FitVersion, *demo)
-	}
-}
-
-func Ls(cmd *cli.Cmd) {
-	var dbPath = cmd.StringOpt("d db", "/tmp/fit.db", "Write to BoltDB path")
-	cmd.Action = func() {
-		db, err := store.NewDB(*dbPath)
-		FailOnErr(err)
-		datasets, err := db.Datasets()
-		FailOnErr(err)
-		for _, dataset := range datasets {
-			fmt.Printf("%s-%s\n", dataset.Name, dataset.Columns)
-		}
-	}
-}
-
-func Load(cmd *cli.Cmd) {
-	var (
-		name       = cmd.StringOpt("n name", "", "Name for this dataset")
-		parserOpts = cmd.StringsOpt("p parser", []string{}, "Parsers to apply")
-		path       = cmd.StringArg("PATH", "", "Path to your CSV dataset")
-		dbPath     = cmd.StringOpt("d db", "/tmp/fit.db", "Write to BoltDB path")
-	)
-	cmd.Action = func() {
-		if *name == "" {
-			FailOnErr(fmt.Errorf("You must specify a name"))
-		}
-		db, err := store.NewDB(*dbPath)
-		FailOnErr(err)
-		parsers, err := loader.ParsersFromArgs(*parserOpts)
-		FailOnErr(err)
-		reader, err := loader.NewCSV(&loader.CSVOptions{Path: *path, Parsers: parsers})
-		FailOnErr(err)
-		m, err := store.ReadMatrix(reader)
-		FailOnErr(err)
-		FailOnErr(db.Write(&store.Dataset{Name: *name, Columns: reader.Columns()}, m))
-	}
-}
-
-func Cat(cmd *cli.Cmd) {
-	var (
-		parserOpts = cmd.StringsOpt("p parser", []string{}, "Parsers to apply")
-		path       = cmd.StringArg("PATH", "", "Path to your CSV dataset")
-	)
-	cmd.Action = func() {
-		parsers, err := loader.ParsersFromArgs(*parserOpts)
-		FailOnErr(err)
-		reader, err := loader.NewCSV(&loader.CSVOptions{Path: *path, Parsers: parsers})
-		FailOnErr(err)
-		m, err := store.ReadMatrix(reader)
-		FailOnErr(err)
-		fmt.Printf("\n%s\n", reader.Columns())
-		fmt.Printf("\n%v\n\n", mtx.Formatted(m, mtx.Prefix("  "), mtx.Excerpt(5)))
-	}
+func GetDB() *store.DB {
+	db, err := store.NewDB(*dbPath)
+	FailOnErr(err)
+	return db
 }
 
 func Run() {
-	app := cli.App("fit", "Fit is a toolkit for exploring numerical data")
-	app.Command("server", "Run the Fit web server", Server)
-	app.Command("load", "load a dataset into BoltDB", Load)
-	app.Command("cat", "write a dataset to stdout or perform transformations on it", Cat)
-	app.Command("ls", "list datasets loaded into the database with their columns", Ls)
 	app.Version("v version", FitVersion)
-	app.Run(os.Args)
+
+	app.Command("server", "Run the Fit web server", func(cmd *cli.Cmd) {
+		var (
+			pattern = cmd.StringOpt("pattern", "127.0.0.1:8000", "IP and port pattern to listen on")
+			static  = cmd.StringOpt("static", "./www", "Path to static assets")
+			demo    = cmd.BoolOpt("demo", false, "Run in Demo Mode")
+		)
+		cmd.Action = func() {
+			db := GetDB()
+			server.RunServer(db, *pattern, *static, FitVersion, *demo)
+		}
+	})
+
+	app.Command("load", "load a dataset into BoltDB", func(cmd *cli.Cmd) {
+		cmd.Spec = "[-n][-p...] PATH"
+		var (
+			name    = cmd.StringOpt("n name", "", "name of this dataset")
+			path    = cmd.StringArg("PATH", "", "File path")
+			parsers = cmd.StringsOpt("p parser", []string{}, "parsers to apply")
+		)
+		cmd.Action = func() {
+			p, err := parser.ParsersFromArgs(*parsers)
+			FailOnErr(err)
+			ds, err := loader.ReadPath(*name, *path, loader.NONE, p)
+			FailOnErr(err)
+			FailOnErr(GetDB().Write(ds))
+		}
+	})
+
+	app.Command("ls", "list datasets loaded into the database with their columns", func(cmd *cli.Cmd) {
+		cmd.Action = func() {
+			db := GetDB()
+			defer db.Close()
+			datasets, err := db.Datasets()
+			FailOnErr(err)
+			switch {
+			case *asJSON:
+				raw, err := json.Marshal(datasets)
+				FailOnErr(err)
+				fmt.Println(string(raw))
+			default:
+				tbl := uitable.New()
+				tbl.AddRow("NAME", "ROWS", "COLS", "COLUMNS")
+				for _, dataset := range datasets {
+					tbl.AddRow(dataset.Name, fmt.Sprintf("%d", dataset.Rows), fmt.Sprintf("%d", dataset.Cols), dataset.Columns)
+				}
+				fmt.Println(tbl)
+			}
+		}
+	})
+
+	app.Command("show", "Show values from one or more stored datasets", func(cmd *cli.Cmd) {
+		var (
+			queryArgs = cmd.StringsOpt("q query", []string{}, "Query parameters")
+			lines     = cmd.IntOpt("n lines", 10, "number of rows to output")
+		)
+		cmd.LongDesc = `Show values from one or more stored datasets. Values from different 
+datasets can be joined together by specifying multiple query parameters.
+
+Example:
+
+fit show -q Dataset1,fuu -q Dataset2,bar,baz -n 5
+`
+		cmd.Spec = "[-q...][-n]"
+		cmd.Action = func() {
+			if len(*queryArgs) == 0 {
+				cmd.PrintLongHelp()
+				os.Exit(1)
+			}
+			db := GetDB()
+			ds, err := db.Query(store.QueryFromArgs(*queryArgs)...)
+			FailOnErr(err)
+			if ds.Len() > 0 {
+				switch {
+				case *asJSON:
+					raw, err := json.Marshal(ds)
+					FailOnErr(err)
+					fmt.Println(string(raw))
+				default:
+					fmt.Printf("\n%s\n", ds.Columns)
+					fmt.Printf("\n%v\n\n", mtx.Formatted(ds.Mtx, mtx.Prefix("  "), mtx.Excerpt(*lines)))
+				}
+			}
+		}
+	})
+
+	FailOnErr(app.Run(os.Args))
 }
