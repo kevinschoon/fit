@@ -1,7 +1,7 @@
 package chart
 
-/*
 import (
+	mtx "github.com/gonum/matrix/mat64"
 	"github.com/gonum/plot"
 	"github.com/gonum/plot/plotter"
 	"github.com/gonum/plot/plotutil"
@@ -16,12 +16,15 @@ type Config struct {
 	XLabel         string
 	YLabel         string
 	Title          string
-	Keys           []string
-	XAxis          models.Key
-	YAxis          map[string]models.Key
+	Columns        []string
 	Width          vg.Length
 	Height         vg.Length
 	PlotTime       bool
+}
+
+type Vector struct {
+	Name     string
+	Position int
 }
 
 func getPlot(cfg Config) (*plot.Plot, error) {
@@ -58,28 +61,39 @@ func getPlot(cfg Config) (*plot.Plot, error) {
 	return plt, nil
 }
 
-// New returns a line chart plotting the provided values
-func New(cfg Config, series []*models.Series) (vg.CanvasWriterTo, error) {
+// GetLines returns variadic arguments for plotter.AddLines
+// The chart will always plot the first column vector as
+// the X axis and remaining columns on the Y axis.
+//
+//	x,y,z
+//  1,1,2
+//  2,3,4
+//  3,5,6
+//
+// Line Y: 1,1 2,3 3,5
+// Line Z: 1,2 2,4 3,6
+
+func GetLines(mx *mtx.Dense, columns []string) []interface{} {
+	data := make([]interface{}, 0)
+	r, c := mx.Dims()
+	for i := 1; i < c; i++ {
+		xys := make(plotter.XYs, r)
+		for j := 0; j < r; j++ {
+			xys[j].X = mx.At(j, 0)
+			xys[j].Y = mx.At(j, i)
+		}
+		data = append(data, columns[i])
+		data = append(data, xys)
+	}
+	return data
+}
+
+func New(cfg Config, mx *mtx.Dense) (vg.CanvasWriterTo, error) {
 	plt, err := getPlot(cfg)
 	if err != nil {
 		return nil, err
 	}
-	// Implement variadic arguments for plotter.AddLines
-	// ...string,XYer
-	data := make([]interface{}, 0)
-	xValues := models.Select(cfg.XAxis, series)
-	for _, name := range series[0].Keys.Names() {
-		if y, ok := cfg.YAxis[name]; ok {
-			xys := make(plotter.XYs, len(xValues))
-			for i, value := range models.Select(y, series) {
-				xys[i].X = xValues[i].Float64()
-				xys[i].Y = value.Float64()
-			}
-			data = append(data, name)
-			data = append(data, xys)
-		}
-	}
-	if err := plotutil.AddLines(plt, data...); err != nil {
+	if err := plotutil.AddLines(plt, GetLines(mx, cfg.Columns)...); err != nil {
 		return nil, err
 	}
 	plt.Add(plotter.NewGrid())
@@ -90,4 +104,3 @@ func New(cfg Config, series []*models.Series) (vg.CanvasWriterTo, error) {
 	plt.Draw(draw.New(canvas))
 	return canvas, nil
 }
-*/
