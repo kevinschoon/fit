@@ -108,7 +108,7 @@ fit show -q Dataset1,fuu -q Dataset2,bar,baz -n 5
 				os.Exit(1)
 			}
 			db := GetDB()
-			ds, err := db.Query(store.QueryFromArgs(*queryArgs)...)
+			ds, err := db.Query(store.NewQueries(*queryArgs))
 			FailOnErr(err)
 			if ds.Len() > 0 {
 				switch {
@@ -118,7 +118,11 @@ fit show -q Dataset1,fuu -q Dataset2,bar,baz -n 5
 					fmt.Println(string(raw))
 				default:
 					fmt.Printf("\n%s\n", ds.Columns)
-					fmt.Printf("\n%v\n\n", mtx.Formatted(ds.Mtx, mtx.Prefix("  "), mtx.Excerpt(*lines)))
+					if *lines > 0 {
+						fmt.Printf("\n%v\n\n", mtx.Formatted(ds.Mtx, mtx.Prefix("  "), mtx.Excerpt(*lines)))
+					} else {
+						fmt.Printf("\n%v\n\n", mtx.Formatted(ds.Mtx, mtx.Prefix("  ")))
+					}
 				}
 			}
 		}
