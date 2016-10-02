@@ -2,13 +2,8 @@ package server
 
 import (
 	"fmt"
-	//"time"
-
-	//"github.com/gorilla/mux"
-	//"github.com/kevinschoon/fit/chart"
-	//mtx "github.com/gonum/matrix/mat64"
+	"github.com/kevinschoon/fit/chart"
 	"github.com/kevinschoon/fit/store"
-
 	"net/http"
 	"net/url"
 	"text/template"
@@ -17,10 +12,11 @@ import (
 type Response struct {
 	Title    string
 	Explore  bool     // Display Data Explorer
-	Browse   bool     // Display Series Listing
+	Browse   bool     // Display Datasets Listing
 	Keys     []string // Series Keys to Display
 	ChartURL string   // URL for rendering the chart
 	Datasets []*store.Dataset
+	Dataset  *store.Dataset
 	Query    url.Values
 	DemoMode bool
 	Version  string
@@ -63,21 +59,39 @@ func (handler Handler) response() *Response {
 }
 
 func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
-	/*
-		start, end := StartEnd(r.URL)
-		series, err := handler.db.ReadSeries(mux.Vars(r)["series"], start, end)
-		if err != nil {
-			return err
-		}
-		series = models.Resize(series, Aggr(r.URL))
-		series = models.Apply(series, Fn(r.URL))
-		canvas, err := chart.New(ChartCfg(series[0], r.URL), series)
-		if err != nil {
-			return err
-		}
-		_, err = canvas.WriteTo(w)
-	*/
-	return nil
+	ds, err := handler.db.Query(XYQueries(r.URL))
+	if err != nil {
+		return err
+	}
+	cfg := ChartCfg(ds, r.URL)
+	canvas, err := chart.New(cfg, ds.Mtx)
+	if err != nil {
+		return err
+	}
+	_, err = canvas.WriteTo(w)
+	return err
+}
+
+func (handler Handler) Explore(w http.ResponseWriter, r *http.Request) error {
+	tmpl, err := template.ParseFiles(handler.templates...)
+	if err != nil {
+		return err
+	}
+	response := handler.response()
+	datasets, err := handler.db.Datasets()
+	if err != nil {
+		return err
+	}
+	response.Datasets = datasets
+	response.Query = r.URL.Query()
+	response.Explore = true
+	response.ChartURL = Chart(r.URL)
+	ds, err := handler.db.Query(XYQueries(r.URL))
+	if err != nil {
+		return err
+	}
+	response.Dataset = ds
+	return tmpl.Execute(w, response)
 }
 
 func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
@@ -94,38 +108,5 @@ func (handler Handler) Home(w http.ResponseWriter, r *http.Request) error {
 	response.Query = r.URL.Query()
 	response.Title = "Browse"
 	response.Browse = true
-	return tmpl.Execute(w, response)
-}
-
-func (handler Handler) Explore(w http.ResponseWriter, r *http.Request) error {
-	tmpl, err := template.ParseFiles(handler.templates...)
-	if err != nil {
-		return err
-	}
-	response := handler.response()
-	datasets, err := handler.db.Datasets()
-	if err != nil {
-		return err
-	}
-	response.Datasets = datasets
-	response.Query = r.URL.Query()
-	response.Explore = true
-	/*
-		response.ChartURL = Chart(r.URL)
-		series, err := handler.db.ReadSeries(name, start, end)
-		if err != nil {
-			return err
-		}
-		response.Keys = StrArray("keys", r.URL)
-		if len(response.Keys) < 1 {
-			response.Keys = series[0].Keys.Names()
-		}
-		series = models.Resize(series, Aggr(r.URL))
-		series = models.Apply(series, Fn(r.URL))
-		response.Series = series
-		return tmpl.Execute(w, response)
-		response.Title = "Browse"
-		response.Browse = true
-	*/
 	return tmpl.Execute(w, response)
 }
