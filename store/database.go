@@ -18,21 +18,38 @@ var (
 // of multiple datasets into a single
 // matrix of values
 type Query struct {
-	Fn      string   // TODO
 	Name    string   // Dataset name
 	Columns []string // Column names
 }
 
-func QueryFromArgs(args []string) []*Query {
-	q := make([]*Query, len(args))
-	for i, arg := range args {
-		split := strings.Split(arg, ",")
-		q[i] = &Query{
-			Name:    split[0],
-			Columns: split[1:],
+type Queries []*Query
+
+func (queries Queries) Columns() []string {
+	columns := make([]string, 0)
+	for _, query := range queries {
+		for _, column := range query.Columns {
+			columns = append(columns, column)
 		}
 	}
-	return q
+	return columns
+}
+
+func (queries Queries) Len() int {
+	return len(queries)
+}
+
+func NewQueries(args []string) Queries {
+	queries := make(Queries, len(args))
+	for i, arg := range args {
+		split := strings.Split(arg, ",")
+		if len(split) > 1 {
+			queries[i] = &Query{
+				Name:    split[0],
+				Columns: split[1:],
+			}
+		}
+	}
+	return queries
 }
 
 type DB struct {
@@ -111,10 +128,21 @@ func (db *DB) Read(name string) (ds *Dataset, err error) {
 	return ds, err
 }
 
-func (db *DB) Query(queries ...*Query) (*Dataset, error) {
+// Query finds all of the datasets contained
+// in Queries and returns a combined dataset
+// for each column in the search. The values
+// from each dataset are stored entirely in
+// memory until the query is complete. This
+// means that the total size of all datasets
+// queried cannot exceed the total system
+// memory. The resulting dataset columns
+// will be ordered in the same order they
+// were queried for.
+func (db *DB) Query(queries Queries) (*Dataset, error) {
 	var (
-		rows int // Row count for new dataset
-		cols int // Col count for new dataset
+		rows  int      // Row count for new dataset
+		cols  int      // Col count for new dataset
+		other *Dataset // Dataset currently being processed
 	)
 	// The new resulting dataset
 	ds := &Dataset{
@@ -124,18 +152,29 @@ func (db *DB) Query(queries ...*Query) (*Dataset, error) {
 	// Empty array of Vectors where each
 	// is a column from the queries
 	vectors := make([]*mtx.Vector, 0)
+	// Map of datasets already processed
+	processed := make(map[string]*Dataset)
 	// Range each query
 	for _, query := range queries {
-		// Query for the other dataset
-		other, err := db.Read(query.Name)
-		if err != nil {
-			return nil, err
+		// Check to see if a query for this dataset
+		// has already been executed
+		if _, ok := processed[query.Name]; !ok {
+			// Query for the other dataset
+			other, err := db.Read(query.Name)
+			if err != nil {
+				return nil, err
+			}
+			// Resulting matrix should have the sum of
+			// the number of rows from each unique
+			// dataset matrix that is queried
+			r, _ := other.Mtx.Dims()
+			rows += r
+			// Add this dataset to the map
+			// so it is not queried again
+			processed[query.Name] = other
 		}
-		// Resulting matrix should have the sum of
-		// the number of rows from each matrix that
-		// is queried
-		r, _ := other.Mtx.Dims()
-		rows += r
+		// The other dataset we are querying
+		other = processed[query.Name]
 		// Range each column in the query
 		for _, name := range query.Columns {
 			// Get the position (index) of the column

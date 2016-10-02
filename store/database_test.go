@@ -63,13 +63,17 @@ func TestReadWrite(t *testing.T) {
 }
 
 func TestQueryFromArgs(t *testing.T) {
-	args := []string{"D0,x,y", "D1,x"}
-	assert.Equal(t, 2, len(QueryFromArgs(args)))
-	assert.Equal(t, "D0", QueryFromArgs(args)[0].Name)
-	assert.Equal(t, "x", QueryFromArgs(args)[0].Columns[0])
-	assert.Equal(t, "y", QueryFromArgs(args)[0].Columns[1])
-	assert.Equal(t, "D1", QueryFromArgs(args)[1].Name)
-	assert.Equal(t, "x", QueryFromArgs(args)[1].Columns[0])
+	args := []string{"D0,x,y", "D1,x,z"}
+	queries := NewQueries(args)
+	assert.Equal(t, 2, len(queries))
+	assert.Equal(t, "D0", queries[0].Name)
+	assert.Equal(t, "D1", queries[1].Name)
+	columns := queries.Columns()
+	assert.Equal(t, 4, len(columns))
+	assert.Equal(t, "x", columns[0])
+	assert.Equal(t, "y", columns[1])
+	assert.Equal(t, "x", columns[2])
+	assert.Equal(t, "z", columns[3])
 }
 
 func TestQuery(t *testing.T) {
@@ -94,14 +98,26 @@ func TestQuery(t *testing.T) {
 		Mtx:     mx2,
 		Columns: []string{"E", "F", "G", "H"}}),
 	)
-	q := []*Query{
+	// Ensure multiple queries for the same dataset do not
+	// return multiple rows
+	q := Queries{
+		&Query{Name: "mx1", Columns: []string{"A", "B", "B"}},
+		&Query{Name: "mx1", Columns: []string{"B", "C", "D"}},
+	}
+	ds, err := db.Query(q)
+	assert.NoError(t, err)
+	mx := ds.Mtx
+	r, c := mx.Dims()
+	assert.Equal(t, 2, r)
+	assert.Equal(t, 6, c)
+	q = Queries{
 		&Query{Name: "mx1", Columns: []string{"A", "B", "C"}},
 		&Query{Name: "mx2", Columns: []string{"E", "F", "G"}},
 	}
-	ds, err := db.Query(q...)
-	mx := ds.Mtx
+	ds, err = db.Query(q)
+	mx = ds.Mtx
 	assert.NoError(t, err)
-	r, c := mx.Dims()
+	r, c = mx.Dims()
 	assert.Equal(t, 5, r)
 	assert.Equal(t, 6, c)
 	assert.Equal(t, 6, len(ds.Columns))
@@ -120,9 +136,9 @@ func TestQuery(t *testing.T) {
 	assert.Equal(t, 3.0, mx.At(0, ds.CPos("G")))
 	assert.Equal(t, 2.0, mx.At(1, ds.CPos("G")))
 	assert.Equal(t, 1.0, mx.At(2, ds.CPos("G")))
-	_, err = db.Query(&Query{Name: "mx3"})
+	_, err = db.Query(Queries{&Query{Name: "mx3"}})
 	assert.Error(t, err, "not found")
-	_, err = db.Query(&Query{Name: "mx1", Columns: []string{"H"}})
+	_, err = db.Query(Queries{&Query{Name: "mx1", Columns: []string{"H"}}})
 	assert.Error(t, err, "not found")
 }
 
