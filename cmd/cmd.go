@@ -82,7 +82,7 @@ func Run() {
 				tbl := uitable.New()
 				tbl.AddRow("NAME", "ROWS", "COLS", "COLUMNS")
 				for _, dataset := range datasets {
-					tbl.AddRow(dataset.Name, fmt.Sprintf("%d", dataset.Rows), fmt.Sprintf("%d", dataset.Cols), dataset.Columns)
+					tbl.AddRow(dataset.Name, fmt.Sprintf("%d", dataset.Stats.Rows), fmt.Sprintf("%d", dataset.Stats.Columns), dataset.Columns)
 				}
 				fmt.Println(tbl)
 			}

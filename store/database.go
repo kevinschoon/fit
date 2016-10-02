@@ -81,6 +81,7 @@ func (db *DB) Write(ds *Dataset) (err error) {
 		if err != nil {
 			return err
 		}
+		ds.stats()
 		raw, err := json.Marshal(ds)
 		if err != nil {
 			return err
@@ -101,7 +102,7 @@ func (db *DB) Write(ds *Dataset) (err error) {
 }
 
 func (db *DB) Read(name string) (ds *Dataset, err error) {
-	err = db.bolt.View(func(tx *bolt.Tx) error {
+	if err = db.bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("datasets"))
 		if b == nil { // No datasets have been saved
 			return nil
@@ -124,8 +125,11 @@ func (db *DB) Read(name string) (ds *Dataset, err error) {
 		}
 		ds.Mtx = mtx.NewDense(0, 0, nil)
 		return ds.Mtx.UnmarshalBinary(raw)
-	})
-	return ds, err
+	}); err != nil {
+		return nil, err
+	}
+	ds.stats()
+	return ds, nil
 }
 
 // Query finds all of the datasets contained

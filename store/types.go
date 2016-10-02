@@ -9,16 +9,31 @@ import (
 
 var ErrNoData = errors.New("no data")
 
+// Stats contain statistics about the
+// underlying data in a dataset
+type Stats struct {
+	Rows    int
+	Columns int
+}
+
 // Dataset consists of a name and
 // an ordered array of column names
 type Dataset struct {
-	Name    string     // Name of this dataset
-	Columns []string   // Ordered array of cols
-	Mtx     *mtx.Dense `json:"-"` // Dense Matrix contains all values in the dataset
-	Rows    int
-	Cols    int
-	lock    sync.RWMutex
-	index   int
+	Name          string     // Name of this dataset
+	Columns       []string   // Ordered array of cols
+	Mtx           *mtx.Dense `json:"-"` // Dense Matrix contains all values in the dataset
+	Stats         *Stats
+	lock          sync.RWMutex
+	index         int
+	marshalMatrix bool
+}
+
+// stats updates the Stats struct
+func (ds *Dataset) stats() {
+	ds.Stats = &Stats{}
+	if ds.Mtx != nil {
+		ds.Stats.Rows, ds.Stats.Columns = ds.Mtx.Dims()
+	}
 }
 
 // Len returns the length (number of rows) of the dataset
