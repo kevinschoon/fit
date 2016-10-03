@@ -12,6 +12,8 @@ import (
 var (
 	ErrNotFound = errors.New("not found")
 	ErrBadQuery = errors.New("bad query")
+	dsBucket    = []byte("datasets")
+	mxBucket    = []byte("matricies")
 )
 
 // Query can be used to combine the results
@@ -58,10 +60,7 @@ type DB struct {
 
 func (db *DB) Datasets() (datasets []*Dataset, err error) {
 	err = db.bolt.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("datasets"))
-		if b == nil { // No datasets have been saved
-			return nil
-		}
+		b := tx.Bucket(dsBucket)
 		cursor := b.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 			ds := &Dataset{}
@@ -76,12 +75,9 @@ func (db *DB) Datasets() (datasets []*Dataset, err error) {
 }
 
 func (db *DB) Write(ds *Dataset) (err error) {
+	ds.stats()
 	return db.bolt.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("datasets"))
-		if err != nil {
-			return err
-		}
-		ds.stats()
+		b := tx.Bucket(dsBucket)
 		raw, err := json.Marshal(ds)
 		if err != nil {
 			return err
@@ -92,10 +88,7 @@ func (db *DB) Write(ds *Dataset) (err error) {
 		if ds.Mtx == nil { // No matricies attached to this dataset
 			return nil
 		}
-		b, err = tx.CreateBucketIfNotExists([]byte("matricies"))
-		if err != nil {
-			return err
-		}
+		b = tx.Bucket(mxBucket)
 		raw, err = ds.Mtx.MarshalBinary()
 		if err != nil {
 			return err
@@ -106,10 +99,7 @@ func (db *DB) Write(ds *Dataset) (err error) {
 
 func (db *DB) Read(name string) (ds *Dataset, err error) {
 	if err = db.bolt.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("datasets"))
-		if b == nil { // No datasets have been saved
-			return nil
-		}
+		b := tx.Bucket(dsBucket)
 		raw := b.Get([]byte(name))
 		if raw == nil {
 			return ErrNotFound
@@ -118,10 +108,7 @@ func (db *DB) Read(name string) (ds *Dataset, err error) {
 		if err = json.Unmarshal(raw, ds); err != nil {
 			return err
 		}
-		b = tx.Bucket([]byte("matricies"))
-		if b == nil {
-			return ErrNotFound
-		}
+		b = tx.Bucket(mxBucket)
 		raw = b.Get([]byte(name))
 		if raw == nil {
 			return nil // No matricies attached to the dataset
@@ -227,5 +214,15 @@ func NewDB(path string) (*DB, error) {
 	db := &DB{
 		bolt: b,
 	}
-	return db, nil
+	// Initialize buckets
+	err = db.bolt.Update(func(tx *bolt.Tx) error {
+		if _, err = tx.CreateBucketIfNotExists(dsBucket); err != nil {
+			return err
+		}
+		if _, err = tx.CreateBucketIfNotExists(mxBucket); err != nil {
+			return err
+		}
+		return nil
+	})
+	return db, err
 }
