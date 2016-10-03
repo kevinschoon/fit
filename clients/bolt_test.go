@@ -1,7 +1,8 @@
-package store
+package clients
 
 import (
 	mtx "github.com/gonum/matrix/mat64"
+	"github.com/kevinschoon/fit/types"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/rand"
@@ -20,15 +21,14 @@ func NewTestMatrix(r, c int) *mtx.Dense {
 	return mtx.NewDense(r, c, values)
 }
 
-func NewTestDB(t *testing.T) (*DB, func()) {
+func NewTestDB(t *testing.T) (types.Client, func()) {
 	f, err := ioutil.TempFile("/tmp", "fit-test")
 	if err != nil {
 		t.Error(err)
 	}
-	db, err := NewDB(f.Name())
+	db, err := NewBoltClient(f.Name())
 	assert.NoError(t, err)
 	return db, func() {
-		db.Close()
 		if cleanup {
 			os.Remove(f.Name())
 		}
@@ -46,7 +46,7 @@ func TestDatasets(t *testing.T) {
 func TestReadWrite(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()
-	dsA := &Dataset{
+	dsA := &types.Dataset{
 		Name: "TestReadWrite",
 		Columns: []string{
 			"V1", "V2", "V3", "V4",
@@ -74,21 +74,21 @@ func TestQuery(t *testing.T) {
 		2.0, 2.0, 2.0, 2.0,
 		1.0, 1.0, 1.0, 1.0,
 	})
-	assert.NoError(t, db.Write(&Dataset{
+	assert.NoError(t, db.Write(&types.Dataset{
 		Name:    "mx1",
 		Mtx:     mx1,
 		Columns: []string{"A", "B", "C", "D"}}),
 	)
-	assert.NoError(t, db.Write(&Dataset{
+	assert.NoError(t, db.Write(&types.Dataset{
 		Name:    "mx2",
 		Mtx:     mx2,
 		Columns: []string{"E", "F", "G", "H"}}),
 	)
 	// Ensure multiple queries for the same dataset do not
 	// return multiple rows
-	q := Queries{
-		&Query{Name: "mx1", Columns: []string{"A", "B", "B"}},
-		&Query{Name: "mx1", Columns: []string{"B", "C", "D"}},
+	q := types.Queries{
+		&types.Query{Name: "mx1", Columns: []string{"A", "B", "B"}},
+		&types.Query{Name: "mx1", Columns: []string{"B", "C", "D"}},
 	}
 	ds, err := db.Query(q)
 	assert.NoError(t, err)
@@ -96,9 +96,9 @@ func TestQuery(t *testing.T) {
 	r, c := mx.Dims()
 	assert.Equal(t, 2, r)
 	assert.Equal(t, 6, c)
-	q = Queries{
-		&Query{Name: "mx1", Columns: []string{"A", "B", "C"}},
-		&Query{Name: "mx2", Columns: []string{"E", "F", "G"}},
+	q = types.Queries{
+		&types.Query{Name: "mx1", Columns: []string{"A", "B", "C"}},
+		&types.Query{Name: "mx2", Columns: []string{"E", "F", "G"}},
 	}
 	ds, err = db.Query(q)
 	mx = ds.Mtx
@@ -122,9 +122,9 @@ func TestQuery(t *testing.T) {
 	assert.Equal(t, 3.0, mx.At(0, ds.CPos("G")))
 	assert.Equal(t, 2.0, mx.At(1, ds.CPos("G")))
 	assert.Equal(t, 1.0, mx.At(2, ds.CPos("G")))
-	_, err = db.Query(Queries{&Query{Name: "mx3"}})
+	_, err = db.Query(types.Queries{&types.Query{Name: "mx3"}})
 	assert.Error(t, err, "not found")
-	_, err = db.Query(Queries{&Query{Name: "mx1", Columns: []string{"H"}}})
+	_, err = db.Query(types.Queries{&types.Query{Name: "mx1", Columns: []string{"H"}}})
 	assert.Error(t, err, "not found")
 }
 

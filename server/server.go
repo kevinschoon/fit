@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/kevinschoon/fit/store"
+	"github.com/kevinschoon/fit/types"
 )
 
 type ErrorHandler func(http.ResponseWriter, *http.Request) error
@@ -26,7 +26,7 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 		case template.ExecError:
 		default:
 			switch err {
-			case store.ErrNotFound:
+			case types.ErrNotFound:
 				http.NotFound(w, r)
 			default:
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -56,7 +56,7 @@ func (handler StaticHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-func RunServer(db *store.DB, pattern, path, version string, demo bool) {
+func RunServer(db types.Client, pattern, path, version string, demo bool) {
 	templates := []string{
 		fmt.Sprintf("%s/html/base.html", path),
 		fmt.Sprintf("%s/html/panel.html", path),

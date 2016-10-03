@@ -1,30 +1,33 @@
-package store
+package clients
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/boltdb/bolt"
 	mtx "github.com/gonum/matrix/mat64"
+	"github.com/kevinschoon/fit/types"
 	"time"
 )
 
-var (
-	ErrNotFound = errors.New("not found")
-	ErrBadQuery = errors.New("bad query")
-	dsBucket    = []byte("datasets")
-	mxBucket    = []byte("matricies")
-)
-
-type DB struct {
+// BoltClient implements the types.Client
+// interface with a BoltDB backend.
+// BoltClient is the primary database
+// backend for Fit. It can also be used
+// directly from the command line.
+type BoltClient struct {
 	bolt *bolt.DB
 }
 
-func (db *DB) Datasets() (datasets []*Dataset, err error) {
-	err = db.bolt.View(func(tx *bolt.Tx) error {
+var (
+	dsBucket = []byte("datasets")
+	mxBucket = []byte("matricies")
+)
+
+func (c *BoltClient) Datasets() (datasets []*types.Dataset, err error) {
+	err = c.bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(dsBucket)
 		cursor := b.Cursor()
 		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			ds := &Dataset{}
+			ds := &types.Dataset{}
 			if err := json.Unmarshal(v, ds); err != nil {
 				return err
 			}
@@ -35,8 +38,8 @@ func (db *DB) Datasets() (datasets []*Dataset, err error) {
 	return datasets, err
 }
 
-func (db *DB) Write(ds *Dataset) (err error) {
-	return db.bolt.Update(func(tx *bolt.Tx) error {
+func (c *BoltClient) Write(ds *types.Dataset) (err error) {
+	return c.bolt.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(dsBucket)
 		raw, err := json.Marshal(ds)
 		if err != nil {
@@ -57,14 +60,14 @@ func (db *DB) Write(ds *Dataset) (err error) {
 	})
 }
 
-func (db *DB) Read(name string) (ds *Dataset, err error) {
-	if err = db.bolt.View(func(tx *bolt.Tx) error {
+func (c *BoltClient) Read(name string) (ds *types.Dataset, err error) {
+	if err = c.bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(dsBucket)
 		raw := b.Get([]byte(name))
 		if raw == nil {
-			return ErrNotFound
+			return types.ErrNotFound
 		}
-		ds = &Dataset{}
+		ds = &types.Dataset{}
 		if err = json.Unmarshal(raw, ds); err != nil {
 			return err
 		}
@@ -81,8 +84,8 @@ func (db *DB) Read(name string) (ds *Dataset, err error) {
 	return ds, nil
 }
 
-func (db *DB) Delete(name string) error {
-	return db.bolt.Update(func(tx *bolt.Tx) error {
+func (c *BoltClient) Delete(name string) error {
+	return c.bolt.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(dsBucket)
 		if err := b.Delete([]byte(name)); err != nil {
 			return err
@@ -102,14 +105,14 @@ func (db *DB) Delete(name string) error {
 // memory. The resulting dataset columns
 // will be ordered in the same order they
 // were queried for.
-func (db *DB) Query(queries Queries) (*Dataset, error) {
+func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
 	var (
-		rows  int      // Row count for new dataset
-		cols  int      // Col count for new dataset
-		other *Dataset // Dataset currently being processed
+		rows  int            // Row count for new dataset
+		cols  int            // Col count for new dataset
+		other *types.Dataset // Dataset currently being processed
 	)
 	// The new resulting dataset
-	ds := &Dataset{
+	ds := &types.Dataset{
 		Name:    "QueryResult",
 		Columns: make([]string, 0),
 	}
@@ -117,14 +120,14 @@ func (db *DB) Query(queries Queries) (*Dataset, error) {
 	// is a column from the queries
 	vectors := make([]*mtx.Vector, 0)
 	// Map of datasets already processed
-	processed := make(map[string]*Dataset)
+	processed := make(map[string]*types.Dataset)
 	// Range each query
 	for _, query := range queries {
 		// Check to see if a query for this dataset
 		// has already been executed
 		if _, ok := processed[query.Name]; !ok {
 			// Query for the other dataset
-			other, err := db.Read(query.Name)
+			other, err := c.Read(query.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -146,7 +149,7 @@ func (db *DB) Query(queries Queries) (*Dataset, error) {
 			// If the returned position is a negative
 			// number the column does not exist
 			if pos < 0 {
-				return nil, ErrNotFound
+				return nil, types.ErrNotFound
 			}
 			// Append the column to vectors array
 			vectors = append(vectors, other.Mtx.ColView(pos))
@@ -170,22 +173,20 @@ func (db *DB) Query(queries Queries) (*Dataset, error) {
 	return ds, nil
 }
 
-func (db *DB) Close() {
-	db.bolt.Close()
+func (c *BoltClient) Close() {
+	c.bolt.Close()
 }
 
-// New returns a new DB object for accesing
-// Series data. It provides a wrapper around BoltDB
-func NewDB(path string) (*DB, error) {
+func NewBoltClient(path string) (types.Client, error) {
 	b, err := bolt.Open(path, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return nil, err
 	}
-	db := &DB{
+	c := &BoltClient{
 		bolt: b,
 	}
 	// Initialize buckets
-	err = db.bolt.Update(func(tx *bolt.Tx) error {
+	err = c.bolt.Update(func(tx *bolt.Tx) error {
 		if _, err = tx.CreateBucketIfNotExists(dsBucket); err != nil {
 			return err
 		}
@@ -194,5 +195,5 @@ func NewDB(path string) (*DB, error) {
 		}
 		return nil
 	})
-	return db, err
+	return types.Client(c), err
 }

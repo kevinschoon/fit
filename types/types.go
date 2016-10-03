@@ -1,4 +1,4 @@
-package store
+package types
 
 import (
 	"encoding/json"
@@ -11,7 +11,20 @@ import (
 	"sync"
 )
 
-var ErrNoData = errors.New("no data")
+var (
+	ErrAPI      = errors.New("api error")
+	ErrNoData   = errors.New("no data")
+	ErrNotFound = errors.New("not found")
+	ErrBadQuery = errors.New("bad query")
+)
+
+type Client interface {
+	Datasets() ([]*Dataset, error)
+	Write(*Dataset) error
+	Read(string) (*Dataset, error)
+	Delete(string) error
+	Query(Queries) (*Dataset, error)
+}
 
 // Stats contain statistics about the
 // underlying data in a dataset

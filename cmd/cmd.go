@@ -6,11 +6,11 @@ import (
 	mtx "github.com/gonum/matrix/mat64"
 	"github.com/gosuri/uitable"
 	"github.com/jawher/mow.cli"
-	"github.com/kevinschoon/fit/client"
+	"github.com/kevinschoon/fit/clients"
 	"github.com/kevinschoon/fit/loader"
 	"github.com/kevinschoon/fit/parser"
 	"github.com/kevinschoon/fit/server"
-	"github.com/kevinschoon/fit/store"
+	"github.com/kevinschoon/fit/types"
 	"os"
 )
 
@@ -19,8 +19,8 @@ const FitVersion string = "0.0.1"
 var (
 	app = cli.App("fit", "Fit is a toolkit for exploring, extracting, and transforming datasets")
 
-	dbPath  = app.StringOpt("d db", "", "Path to a BoltDB database")
-	apiURL  = app.StringOpt("s server", "http://127.0.0.1:8000", "Fit API server")
+	dbPath  = app.StringOpt("d db", "", "Path to a BoltDB database, default: /tmp/fit.db")
+	apiURL  = app.StringOpt("s server", "", "Fit API server, default: http://127.0.0.1:8000")
 	asHuman = app.BoolOpt("h human", true, "output data as human readable text")
 	asJSON  = app.BoolOpt("j json", false, "output data in JSON format")
 )
@@ -32,14 +32,23 @@ func FailOnErr(err error) {
 	}
 }
 
-func GetDB() *store.DB {
-	db, err := store.NewDB(*dbPath)
-	FailOnErr(err)
-	return db
-}
-
-func GetClient() *client.Client {
-	client, err := client.NewClient(*apiURL)
+func GetClient(pref string) types.Client {
+	switch {
+	case *dbPath != "":
+		client, err := clients.NewBoltClient(*dbPath)
+		FailOnErr(err)
+		return client
+	case *apiURL != "":
+		client, err := clients.NewHTTPClient(*apiURL)
+		FailOnErr(err)
+		return client
+	}
+	if pref == "db" {
+		client, err := clients.NewBoltClient("/tmp/fit.db")
+		FailOnErr(err)
+		return client
+	}
+	client, err := clients.NewHTTPClient("http://127.0.0.1:8000")
 	FailOnErr(err)
 	return client
 }
@@ -54,8 +63,7 @@ func Run() {
 			demo    = cmd.BoolOpt("demo", false, "Run in Demo Mode")
 		)
 		cmd.Action = func() {
-			db := GetDB()
-			server.RunServer(db, *pattern, *static, FitVersion, *demo)
+			server.RunServer(GetClient("db"), *pattern, *static, FitVersion, *demo)
 		}
 	})
 
@@ -71,27 +79,13 @@ func Run() {
 			FailOnErr(err)
 			ds, err := loader.ReadPath(*name, *path, loader.NONE, p)
 			FailOnErr(err)
-			switch {
-			case *dbPath != "":
-				FailOnErr(GetDB().Write(ds))
-			default:
-				FailOnErr(GetClient().Write(ds))
-			}
+			FailOnErr(GetClient("").Write(ds))
 		}
 	})
 
 	app.Command("ls", "list datasets loaded into the database with their columns", func(cmd *cli.Cmd) {
 		cmd.Action = func() {
-			var (
-				datasets []*store.Dataset
-				err      error
-			)
-			switch {
-			case *dbPath != "":
-				datasets, err = GetDB().Datasets()
-			default:
-				datasets, err = GetClient().Datasets()
-			}
+			datasets, err := GetClient("").Datasets()
 			FailOnErr(err)
 			switch {
 			case *asJSON:
@@ -116,12 +110,7 @@ func Run() {
 				cmd.PrintLongHelp()
 				os.Exit(1)
 			}
-			switch {
-			case *dbPath != "":
-				FailOnErr(GetDB().Delete(*name))
-			default:
-				FailOnErr(GetClient().Delete(*name))
-			}
+			FailOnErr(GetClient("").Delete(*name))
 		}
 	})
 
@@ -143,16 +132,7 @@ fit show -q Dataset1,fuu -q Dataset2,bar,baz -n 5
 				cmd.PrintLongHelp()
 				os.Exit(1)
 			}
-			var (
-				ds  *store.Dataset
-				err error
-			)
-			switch {
-			case *dbPath != "":
-				ds, err = GetDB().Query(store.NewQueries(*queryArgs))
-			default:
-				ds, err = GetClient().Query(store.NewQueries(*queryArgs))
-			}
+			ds, err := GetClient("").Query(types.NewQueries(*queryArgs))
 			FailOnErr(err)
 			if ds.Len() > 0 {
 				switch {

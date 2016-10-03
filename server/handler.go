@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gonum/plot/vg"
 	"github.com/kevinschoon/fit/chart"
-	"github.com/kevinschoon/fit/store"
+	"github.com/kevinschoon/fit/types"
 	"image/color"
 	"net/http"
 	"net/url"
@@ -19,15 +19,15 @@ type Response struct {
 	Browse   bool     // Display Datasets Listing
 	Keys     []string // Series Keys to Display
 	ChartURL string   // URL for rendering the chart
-	Datasets []*store.Dataset
-	Dataset  *store.Dataset
+	Datasets []*types.Dataset
+	Dataset  *types.Dataset
 	Query    url.Values
 	DemoMode bool
 	Version  string
 }
 
 type Handler struct {
-	db        *store.DB
+	db        types.Client
 	version   string
 	templates []string
 	defaults  Response
@@ -41,7 +41,7 @@ func (handler Handler) response() *Response {
 }
 
 func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
-	ds, err := handler.db.Query(store.NewQueriesFromQS(r.URL))
+	ds, err := handler.db.Query(types.NewQueriesFromQS(r.URL))
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
 		SecondaryColor: color.Black,
 		Width:          18 * vg.Inch,
 		Height:         5 * vg.Inch,
-		Columns:        store.NewQueriesFromQS(r.URL).Columns(),
+		Columns:        types.NewQueriesFromQS(r.URL).Columns(),
 	}
 	if w, err := strconv.ParseInt(r.URL.Query().Get("width"), 0, 64); err == nil {
 		if w < 20 { // Prevent potentially horrible DOS
@@ -74,7 +74,7 @@ func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
 func (handler Handler) DatasetAPI(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case "GET":
-		queries := store.NewQueriesFromQS(r.URL)
+		queries := types.NewQueriesFromQS(r.URL)
 		if len(queries) > 0 { // If URL contains a query return the query result
 			ds, err := handler.db.Query(queries)
 			if err != nil {
@@ -94,7 +94,7 @@ func (handler Handler) DatasetAPI(w http.ResponseWriter, r *http.Request) error 
 			}
 		}
 	case "POST":
-		ds := &store.Dataset{WithValues: true}
+		ds := &types.Dataset{WithValues: true}
 		if err := json.NewDecoder(r.Body).Decode(ds); err != nil {
 			return err
 		}
@@ -150,7 +150,7 @@ func (handler Handler) Explore(w http.ResponseWriter, r *http.Request) error {
 		RawQuery: r.URL.Query().Encode(),
 	}
 	response.ChartURL = chartURL.String()
-	ds, err := handler.db.Query(store.NewQueriesFromQS(r.URL))
+	ds, err := handler.db.Query(types.NewQueriesFromQS(r.URL))
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/kevinschoon/fit/store"
+	"github.com/kevinschoon/fit/clients"
+	"github.com/kevinschoon/fit/types"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
@@ -37,13 +38,12 @@ type MockReader struct {
 
 func (reader MockReader) Close() error { return nil }
 
-func NewTestDB(t *testing.T) (*store.DB, func()) {
+func NewTestDB(t *testing.T) (types.Client, func()) {
 	f, err := ioutil.TempFile("/tmp", "fit-test-")
 	assert.NoError(t, err)
-	db, err := store.NewDB(f.Name())
+	db, err := clients.NewBoltClient(f.Name())
 	assert.NoError(t, err)
 	return db, func() {
-		db.Close()
 		if cleanup {
 			os.Remove(f.Name())
 		}
@@ -78,7 +78,7 @@ func TestDatasetAPI(t *testing.T) {
 	}))
 	raw, err := ioutil.ReadFile(writer.fp.Name())
 	assert.NoError(t, err)
-	ds := []*store.Dataset{}
+	ds := []*types.Dataset{}
 	assert.NoError(t, json.Unmarshal(raw, &ds))
 	assert.Len(t, ds, 1)
 	assert.Equal(t, "V1", ds[0].Columns[0])

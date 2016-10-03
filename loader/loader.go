@@ -6,7 +6,7 @@ import (
 	mtx "github.com/gonum/matrix/mat64"
 	"github.com/kevinschoon/fit/loader/csv"
 	"github.com/kevinschoon/fit/parser"
-	"github.com/kevinschoon/fit/store"
+	"github.com/kevinschoon/fit/types"
 	"io"
 	"os"
 	"strings"
@@ -54,7 +54,7 @@ func Load(loader Loader) (*mtx.Dense, error) {
 	return mtx.NewDense(rows, width, values), nil
 }
 
-func ReadPath(name, path string, enc Encoding, parsers map[int]parser.Parser) (*store.Dataset, error) {
+func ReadPath(name, path string, enc Encoding, parsers map[int]parser.Parser) (*types.Dataset, error) {
 	var (
 		loader Loader
 		mx     *mtx.Dense
@@ -88,7 +88,7 @@ func ReadPath(name, path string, enc Encoding, parsers map[int]parser.Parser) (*
 	default:
 		panic(fmt.Sprintf("unknown encoding: %d", enc))
 	}
-	return &store.Dataset{
+	return &types.Dataset{
 		Name:    name,
 		Columns: loader.Columns(),
 		Mtx:     mx,

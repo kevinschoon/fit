@@ -1,11 +1,10 @@
-package client
+package clients
 
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/kevinschoon/fit/store"
+	"github.com/kevinschoon/fit/types"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,19 +15,14 @@ import (
 
 const timeout time.Duration = 10 * time.Second
 
-var ErrAPIError = errors.New("api error")
-
-// Client talks to the Fit REST API
-// It implements the same interface as
-// the store.DB. As the API stabilizes
-// both should be factored into proper
-// interface types.
-type Client struct {
+// HTTPClient implements the types.Client
+// interface over HTTP
+type HTTPClient struct {
 	baseURL *url.URL
 	client  *http.Client
 }
 
-func (c *Client) url() *url.URL {
+func (c *HTTPClient) url() *url.URL {
 	return &url.URL{
 		Scheme: c.baseURL.Scheme,
 		Host:   c.baseURL.Host,
@@ -36,7 +30,7 @@ func (c *Client) url() *url.URL {
 	}
 }
 
-func (c *Client) do(req *http.Request) ([]byte, error) {
+func (c *HTTPClient) do(req *http.Request) ([]byte, error) {
 	res, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -50,15 +44,15 @@ func (c *Client) do(req *http.Request) ([]byte, error) {
 		log.Println("API Error: %d - %s", res.StatusCode, data)
 		switch res.StatusCode {
 		case 404:
-			return nil, store.ErrNotFound
+			return nil, types.ErrNotFound
 		default:
-			return nil, ErrAPIError
+			return nil, types.ErrAPI
 		}
 	}
 	return data, nil
 }
 
-func (c *Client) Datasets() (datasets []*store.Dataset, err error) {
+func (c *HTTPClient) Datasets() (datasets []*types.Dataset, err error) {
 	raw, err := c.do(&http.Request{
 		URL:    c.url(),
 		Method: "GET",
@@ -70,7 +64,7 @@ func (c *Client) Datasets() (datasets []*store.Dataset, err error) {
 	return datasets, err
 }
 
-func (c *Client) Write(ds *store.Dataset) (err error) {
+func (c *HTTPClient) Write(ds *types.Dataset) (err error) {
 	ds.WithValues = true
 	raw, err := json.Marshal(ds)
 	if err != nil {
@@ -84,11 +78,11 @@ func (c *Client) Write(ds *store.Dataset) (err error) {
 	return err
 }
 
-func (c *Client) Read(name string) (ds *store.Dataset, err error) {
+func (c *HTTPClient) Read(name string) (ds *types.Dataset, err error) {
 	return nil, nil
 }
 
-func (c *Client) Delete(name string) (err error) {
+func (c *HTTPClient) Delete(name string) (err error) {
 	u := c.url()
 	u.RawQuery = fmt.Sprintf("name=%s", name)
 	_, err = c.do(&http.Request{
@@ -98,7 +92,7 @@ func (c *Client) Delete(name string) (err error) {
 	return err
 }
 
-func (c *Client) Query(queries store.Queries) (ds *store.Dataset, err error) {
+func (c *HTTPClient) Query(queries types.Queries) (ds *types.Dataset, err error) {
 	u := c.url()
 	u.RawQuery = queries.QueryStr()
 	raw, err := c.do(&http.Request{
@@ -108,23 +102,23 @@ func (c *Client) Query(queries store.Queries) (ds *store.Dataset, err error) {
 	if err != nil {
 		return nil, err
 	}
-	ds = &store.Dataset{
+	ds = &types.Dataset{
 		WithValues: true,
 	}
 	err = json.Unmarshal(raw, ds)
 	return ds, err
 }
 
-func NewClient(endpoint string) (*Client, error) {
+func NewHTTPClient(endpoint string) (types.Client, error) {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
-	client := &Client{
+	c := &HTTPClient{
 		baseURL: u,
 		client: &http.Client{
 			Timeout: timeout,
 		},
 	}
-	return client, nil
+	return types.Client(c), nil
 }
