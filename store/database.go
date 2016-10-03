@@ -36,7 +36,6 @@ func (db *DB) Datasets() (datasets []*Dataset, err error) {
 }
 
 func (db *DB) Write(ds *Dataset) (err error) {
-	ds.stats()
 	return db.bolt.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(dsBucket)
 		raw, err := json.Marshal(ds)
@@ -79,8 +78,18 @@ func (db *DB) Read(name string) (ds *Dataset, err error) {
 	}); err != nil {
 		return nil, err
 	}
-	ds.stats()
 	return ds, nil
+}
+
+func (db *DB) Delete(name string) error {
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(dsBucket)
+		if err := b.Delete([]byte(name)); err != nil {
+			return err
+		}
+		b = tx.Bucket(mxBucket)
+		return b.Delete([]byte(name))
+	})
 }
 
 // Query finds all of the datasets contained

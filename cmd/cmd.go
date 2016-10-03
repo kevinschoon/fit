@@ -6,6 +6,7 @@ import (
 	mtx "github.com/gonum/matrix/mat64"
 	"github.com/gosuri/uitable"
 	"github.com/jawher/mow.cli"
+	"github.com/kevinschoon/fit/client"
 	"github.com/kevinschoon/fit/loader"
 	"github.com/kevinschoon/fit/parser"
 	"github.com/kevinschoon/fit/server"
@@ -18,7 +19,8 @@ const FitVersion string = "0.0.1"
 var (
 	app = cli.App("fit", "Fit is a toolkit for exploring, extracting, and transforming datasets")
 
-	dbPath  = app.StringOpt("d db", "/tmp/fit.db", "Path to a BoltDB database")
+	dbPath  = app.StringOpt("d db", "", "Path to a BoltDB database")
+	apiURL  = app.StringOpt("s server", "http://127.0.0.1:8000", "Fit API server")
 	asHuman = app.BoolOpt("h human", true, "output data as human readable text")
 	asJSON  = app.BoolOpt("j json", false, "output data in JSON format")
 )
@@ -34,6 +36,12 @@ func GetDB() *store.DB {
 	db, err := store.NewDB(*dbPath)
 	FailOnErr(err)
 	return db
+}
+
+func GetClient() *client.Client {
+	client, err := client.NewClient(*apiURL)
+	FailOnErr(err)
+	return client
 }
 
 func Run() {
@@ -63,15 +71,27 @@ func Run() {
 			FailOnErr(err)
 			ds, err := loader.ReadPath(*name, *path, loader.NONE, p)
 			FailOnErr(err)
-			FailOnErr(GetDB().Write(ds))
+			switch {
+			case *dbPath != "":
+				FailOnErr(GetDB().Write(ds))
+			default:
+				FailOnErr(GetClient().Write(ds))
+			}
 		}
 	})
 
 	app.Command("ls", "list datasets loaded into the database with their columns", func(cmd *cli.Cmd) {
 		cmd.Action = func() {
-			db := GetDB()
-			defer db.Close()
-			datasets, err := db.Datasets()
+			var (
+				datasets []*store.Dataset
+				err      error
+			)
+			switch {
+			case *dbPath != "":
+				datasets, err = GetDB().Datasets()
+			default:
+				datasets, err = GetClient().Datasets()
+			}
 			FailOnErr(err)
 			switch {
 			case *asJSON:
@@ -85,6 +105,22 @@ func Run() {
 					tbl.AddRow(dataset.Name, fmt.Sprintf("%d", dataset.Stats.Rows), fmt.Sprintf("%d", dataset.Stats.Columns), dataset.Columns)
 				}
 				fmt.Println(tbl)
+			}
+		}
+	})
+
+	app.Command("rm", "Delete a dataset", func(cmd *cli.Cmd) {
+		var name = cmd.StringArg("NAME", "", "Name of the dataset to delete")
+		cmd.Action = func() {
+			if *name == "" {
+				cmd.PrintLongHelp()
+				os.Exit(1)
+			}
+			switch {
+			case *dbPath != "":
+				FailOnErr(GetDB().Delete(*name))
+			default:
+				FailOnErr(GetClient().Delete(*name))
 			}
 		}
 	})
@@ -107,8 +143,16 @@ fit show -q Dataset1,fuu -q Dataset2,bar,baz -n 5
 				cmd.PrintLongHelp()
 				os.Exit(1)
 			}
-			db := GetDB()
-			ds, err := db.Query(store.NewQueries(*queryArgs))
+			var (
+				ds  *store.Dataset
+				err error
+			)
+			switch {
+			case *dbPath != "":
+				ds, err = GetDB().Query(store.NewQueries(*queryArgs))
+			default:
+				ds, err = GetClient().Query(store.NewQueries(*queryArgs))
+			}
 			FailOnErr(err)
 			if ds.Len() > 0 {
 				switch {
