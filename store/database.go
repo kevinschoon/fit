@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/boltdb/bolt"
 	mtx "github.com/gonum/matrix/mat64"
-	"strings"
 	"time"
 )
 
@@ -15,44 +14,6 @@ var (
 	dsBucket    = []byte("datasets")
 	mxBucket    = []byte("matricies")
 )
-
-// Query can be used to combine the results
-// of multiple datasets into a single
-// matrix of values
-type Query struct {
-	Name    string   // Dataset name
-	Columns []string // Column names
-}
-
-type Queries []*Query
-
-func (queries Queries) Columns() []string {
-	columns := make([]string, 0)
-	for _, query := range queries {
-		for _, column := range query.Columns {
-			columns = append(columns, column)
-		}
-	}
-	return columns
-}
-
-func (queries Queries) Len() int {
-	return len(queries)
-}
-
-func NewQueries(args []string) Queries {
-	queries := make(Queries, len(args))
-	for i, arg := range args {
-		split := strings.Split(arg, ",")
-		if len(split) > 1 {
-			queries[i] = &Query{
-				Name:    split[0],
-				Columns: split[1:],
-			}
-		}
-	}
-	return queries
-}
 
 type DB struct {
 	bolt *bolt.DB

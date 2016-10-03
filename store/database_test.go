@@ -62,20 +62,6 @@ func TestReadWrite(t *testing.T) {
 	assert.Equal(t, "TestReadWrite", dsB.Name)
 }
 
-func TestQueryFromArgs(t *testing.T) {
-	args := []string{"D0,x,y", "D1,x,z"}
-	queries := NewQueries(args)
-	assert.Equal(t, 2, len(queries))
-	assert.Equal(t, "D0", queries[0].Name)
-	assert.Equal(t, "D1", queries[1].Name)
-	columns := queries.Columns()
-	assert.Equal(t, 4, len(columns))
-	assert.Equal(t, "x", columns[0])
-	assert.Equal(t, "y", columns[1])
-	assert.Equal(t, "x", columns[2])
-	assert.Equal(t, "z", columns[3])
-}
-
 func TestQuery(t *testing.T) {
 	db, cleanup := NewTestDB(t)
 	defer cleanup()

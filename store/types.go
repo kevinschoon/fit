@@ -4,6 +4,8 @@ import (
 	"errors"
 	mtx "github.com/gonum/matrix/mat64"
 	"io"
+	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -75,4 +77,64 @@ func (ds *Dataset) Next() ([]float64, error) {
 	rows := ds.Mtx.RawRowView(ds.index)
 	ds.index++
 	return rows, nil
+}
+
+// Query can be used to combine the results
+// of multiple datasets into a single
+// matrix of values
+type Query struct {
+	Name    string   // Dataset name
+	Columns []string // Column names
+}
+
+type Queries []*Query
+
+func (queries Queries) Columns() []string {
+	columns := make([]string, 0)
+	for _, query := range queries {
+		for _, column := range query.Columns {
+			columns = append(columns, column)
+		}
+	}
+	return columns
+}
+
+func (queries Queries) Len() int {
+	return len(queries)
+}
+
+// QueryStr returns a valid URL query string
+func (queries Queries) QueryStr() string {
+	values := url.Values{}
+	for _, query := range queries {
+		args := make([]string, len(query.Columns)+1)
+		args[0] = query.Name
+		for i := 0; i < len(query.Columns); i++ {
+			args[i+1] = query.Columns[i]
+		}
+		values.Add("q", strings.TrimRight(strings.Join(args, ","), ","))
+	}
+	return values.Encode()
+}
+
+func NewQueries(args []string) Queries {
+	queries := make(Queries, len(args))
+	for i, arg := range args {
+		split := strings.Split(arg, ",")
+		if len(split) > 1 {
+			queries[i] = &Query{
+				Name:    split[0],
+				Columns: split[1:],
+			}
+		}
+	}
+	return queries
+}
+
+func NewQueriesFromQS(u *url.URL) Queries {
+	queries := Queries{}
+	if q, ok := u.Query()["q"]; ok {
+		queries = NewQueries(q)
+	}
+	return queries
 }
