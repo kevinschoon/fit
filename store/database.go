@@ -89,6 +89,9 @@ func (db *DB) Write(ds *Dataset) (err error) {
 		if err = b.Put([]byte(ds.Name), raw); err != nil {
 			return err
 		}
+		if ds.Mtx == nil { // No matricies attached to this dataset
+			return nil
+		}
 		b, err = tx.CreateBucketIfNotExists([]byte("matricies"))
 		if err != nil {
 			return err
@@ -121,7 +124,7 @@ func (db *DB) Read(name string) (ds *Dataset, err error) {
 		}
 		raw = b.Get([]byte(name))
 		if raw == nil {
-			return ErrNotFound
+			return nil // No matricies attached to the dataset
 		}
 		ds.Mtx = mtx.NewDense(0, 0, nil)
 		return ds.Mtx.UnmarshalBinary(raw)
