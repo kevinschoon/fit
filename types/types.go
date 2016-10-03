@@ -21,7 +21,6 @@ var (
 type Client interface {
 	Datasets() ([]*Dataset, error)
 	Write(*Dataset) error
-	Read(string) (*Dataset, error)
 	Delete(string) error
 	Query(Queries) (*Dataset, error)
 }
@@ -137,6 +136,7 @@ func (ds *Dataset) Next() ([]float64, error) {
 type Query struct {
 	Name    string   // Dataset name
 	Columns []string // Column names
+	All     bool     // Return all columns
 }
 
 type Queries []*Query
@@ -173,11 +173,14 @@ func NewQueries(args []string) Queries {
 	queries := make(Queries, len(args))
 	for i, arg := range args {
 		split := strings.Split(arg, ",")
+		if len(split) >= 1 {
+			queries[i] = &Query{Name: split[0]}
+		}
 		if len(split) > 1 {
-			queries[i] = &Query{
-				Name:    split[0],
-				Columns: split[1:],
+			if split[1] == "*" { // Wildcard for all columns
+				queries[i].All = true
 			}
+			queries[i].Columns = split[1:]
 		}
 	}
 	return queries

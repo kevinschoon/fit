@@ -78,10 +78,6 @@ func (c *HTTPClient) Write(ds *types.Dataset) (err error) {
 	return err
 }
 
-func (c *HTTPClient) Read(name string) (ds *types.Dataset, err error) {
-	return nil, nil
-}
-
 func (c *HTTPClient) Delete(name string) (err error) {
 	u := c.url()
 	u.RawQuery = fmt.Sprintf("name=%s", name)

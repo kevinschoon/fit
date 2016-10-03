@@ -44,8 +44,9 @@ func TestDatasets(t *testing.T) {
 }
 
 func TestReadWrite(t *testing.T) {
-	db, cleanup := NewTestDB(t)
+	d, cleanup := NewTestDB(t)
 	defer cleanup()
+	db := d.(*BoltClient)
 	dsA := &types.Dataset{
 		Name: "TestReadWrite",
 		Columns: []string{
@@ -55,7 +56,7 @@ func TestReadWrite(t *testing.T) {
 		Mtx: NewTestMatrix(128, 8),
 	}
 	assert.NoError(t, db.Write(dsA))
-	dsB, err := db.Read(dsA.Name)
+	dsB, err := db.read(dsA.Name)
 	assert.NoError(t, err)
 	assert.True(t, mtx.Equal(dsA.Mtx, dsB.Mtx))
 	assert.Equal(t, 8, len(dsB.Columns))
@@ -101,8 +102,8 @@ func TestQuery(t *testing.T) {
 		&types.Query{Name: "mx2", Columns: []string{"E", "F", "G"}},
 	}
 	ds, err = db.Query(q)
-	mx = ds.Mtx
 	assert.NoError(t, err)
+	mx = ds.Mtx
 	r, c = mx.Dims()
 	assert.Equal(t, 5, r)
 	assert.Equal(t, 6, c)
@@ -126,6 +127,15 @@ func TestQuery(t *testing.T) {
 	assert.Error(t, err, "not found")
 	_, err = db.Query(types.Queries{&types.Query{Name: "mx1", Columns: []string{"H"}}})
 	assert.Error(t, err, "not found")
+	// Wildcard query
+	q = types.Queries{
+		&types.Query{Name: "mx1", All: true},
+	}
+	ds, err = db.Query(q)
+	assert.NoError(t, err)
+	r, c = ds.Mtx.Dims()
+	assert.Equal(t, 2, r)
+	assert.Equal(t, 4, c)
 }
 
 func init() {

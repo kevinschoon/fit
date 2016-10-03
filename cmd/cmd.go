@@ -114,24 +114,25 @@ func Run() {
 		}
 	})
 
-	app.Command("show", "Show values from one or more stored datasets", func(cmd *cli.Cmd) {
+	app.Command("query", "Query values from one or more datasets", func(cmd *cli.Cmd) {
 		var (
-			queryArgs = cmd.StringsOpt("q query", []string{}, "Query parameters")
+			queryArgs = cmd.StringsArg("QUERY", []string{}, "Query parameters")
 			lines     = cmd.IntOpt("n lines", 10, "number of rows to output")
 		)
-		cmd.LongDesc = `Show values from one or more stored datasets. Values from different 
+		cmd.LongDesc = `Query values from one or more stored datasets. Values from different 
 datasets can be joined together by specifying multiple query parameters.
 
 Example:
 
-fit show -q Dataset1,fuu -q Dataset2,bar,baz -n 5
+fit query -n "Dataset1,fuu" "Dataset2,bar,baz"
 `
-		cmd.Spec = "[-q...][-n]"
+		cmd.Spec = "[-n] QUERY..."
 		cmd.Action = func() {
 			if len(*queryArgs) == 0 {
 				cmd.PrintLongHelp()
 				os.Exit(1)
 			}
+			fmt.Println(*queryArgs)
 			ds, err := GetClient("").Query(types.NewQueries(*queryArgs))
 			FailOnErr(err)
 			if ds.Len() > 0 {

@@ -60,7 +60,7 @@ func (c *BoltClient) Write(ds *types.Dataset) (err error) {
 	})
 }
 
-func (c *BoltClient) Read(name string) (ds *types.Dataset, err error) {
+func (c *BoltClient) read(name string) (ds *types.Dataset, err error) {
 	if err = c.bolt.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(dsBucket)
 		raw := b.Get([]byte(name))
@@ -127,7 +127,7 @@ func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
 		// has already been executed
 		if _, ok := processed[query.Name]; !ok {
 			// Query for the other dataset
-			other, err := c.Read(query.Name)
+			other, err := c.read(query.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -142,6 +142,12 @@ func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
 		}
 		// The other dataset we are querying
 		other = processed[query.Name]
+		// If this is a wild card search
+		// set query.columns to all columns
+		// in the current dataset
+		if query.All {
+			query.Columns = other.Columns
+		}
 		// Range each column in the query
 		for _, name := range query.Columns {
 			// Get the position (index) of the column
