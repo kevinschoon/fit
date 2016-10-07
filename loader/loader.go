@@ -8,6 +8,7 @@ import (
 	"github.com/kevinschoon/fit/parser"
 	"github.com/kevinschoon/fit/types"
 	"io"
+	"math"
 	"os"
 	"strings"
 )
@@ -24,6 +25,22 @@ const (
 	JSON
 )
 
+// Filter transforms float64 values
+// if they meet a particular criteria
+type Filter func(float64) float64
+
+func Invalid(i float64) float64 {
+	switch {
+	case math.IsNaN(i):
+		return 0
+	case math.IsInf(i, 1):
+		return 0
+	case math.IsInf(i, -1):
+		return 0
+	}
+	return i
+}
+
 // Loader provides an iterative interface
 // for loading pairs of float64 values
 type Loader interface {
@@ -31,7 +48,7 @@ type Loader interface {
 	Columns() []string
 }
 
-func Load(loader Loader) (*mtx.Dense, error) {
+func Load(loader Loader, filter Filter) (*mtx.Dense, error) {
 	var values []float64
 	var rows int
 	width := len(loader.Columns())
@@ -47,7 +64,7 @@ func Load(loader Loader) (*mtx.Dense, error) {
 			return nil, ErrUnequalValues
 		}
 		for _, value := range v {
-			values = append(values, value)
+			values = append(values, filter(value))
 		}
 		rows++
 	}
@@ -81,7 +98,7 @@ func ReadPath(name, path string, enc Encoding, parsers map[int]parser.Parser) (*
 		if err != nil {
 			return nil, err
 		}
-		mx, err = Load(loader)
+		mx, err = Load(loader, Invalid)
 		if err != nil {
 			return nil, err
 		}
