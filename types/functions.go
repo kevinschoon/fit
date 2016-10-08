@@ -1,8 +1,6 @@
-package functions
+package types
 
-import (
-	mtx "github.com/gonum/matrix/mat64"
-)
+import mtx "github.com/gonum/matrix/mat64"
 
 type Function func(mtx.Matrix) float64
 
