@@ -46,7 +46,7 @@ func TestNewQuery(t *testing.T) {
 	assert.Equal(t, 2, len(columns))
 	assert.Equal(t, "x", columns[0])
 	assert.Equal(t, "z", columns[1])
-	assert.Equal(t, "q=D0%2Cx%2Cy&q=D1%2Cx%2Cz", query.QueryStr())
+	assert.Equal(t, "col=1&fn=sum&max=10&q=D0%2Cx%2Cy&q=D1%2Cx%2Cz", query.QueryStr())
 }
 
 func TestNewQueryFromQS(t *testing.T) {
