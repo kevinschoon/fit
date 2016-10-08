@@ -87,21 +87,13 @@ func TestQuery(t *testing.T) {
 	)
 	// Ensure multiple queries for the same dataset do not
 	// return multiple rows
-	q := types.Queries{
-		&types.Query{Name: "mx1", Columns: []string{"A", "B", "B"}},
-		&types.Query{Name: "mx1", Columns: []string{"B", "C", "D"}},
-	}
-	ds, err := db.Query(q)
+	ds, err := db.Query(types.NewQuery([]string{"mx1,A,B,B", "mx1,B,C,D"}, "", 0, 0))
 	assert.NoError(t, err)
 	mx := ds.Mtx
 	r, c := mx.Dims()
 	assert.Equal(t, 2, r)
 	assert.Equal(t, 6, c)
-	q = types.Queries{
-		&types.Query{Name: "mx1", Columns: []string{"A", "B", "C"}},
-		&types.Query{Name: "mx2", Columns: []string{"E", "F", "G"}},
-	}
-	ds, err = db.Query(q)
+	ds, err = db.Query(types.NewQuery([]string{"mx1,A,B,C", "mx2,E,F,G"}, "", 0, 0))
 	assert.NoError(t, err)
 	mx = ds.Mtx
 	r, c = mx.Dims()
@@ -123,15 +115,12 @@ func TestQuery(t *testing.T) {
 	assert.Equal(t, 3.0, mx.At(0, ds.CPos("G")))
 	assert.Equal(t, 2.0, mx.At(1, ds.CPos("G")))
 	assert.Equal(t, 1.0, mx.At(2, ds.CPos("G")))
-	_, err = db.Query(types.Queries{&types.Query{Name: "mx3"}})
+	_, err = db.Query(types.NewQuery([]string{"mx3"}, "", 0, 0))
 	assert.Error(t, err, "not found")
-	_, err = db.Query(types.Queries{&types.Query{Name: "mx1", Columns: []string{"H"}}})
+	_, err = db.Query(types.NewQuery([]string{"mx1,H"}, "", 0, 0))
 	assert.Error(t, err, "not found")
 	// Wildcard query
-	q = types.Queries{
-		&types.Query{Name: "mx1", All: true},
-	}
-	ds, err = db.Query(q)
+	ds, err = db.Query(types.NewQuery([]string{"mx1,*"}, "", 0, 0))
 	assert.NoError(t, err)
 	r, c = ds.Mtx.Dims()
 	assert.Equal(t, 2, r)

@@ -25,29 +25,43 @@ func TestDatasetJSON(t *testing.T) {
 	assert.Equal(t, ds.Mtx.At(1, 1), out.Mtx.At(1, 1))
 }
 
-func TestQueries(t *testing.T) {
+func TestNewQuery(t *testing.T) {
 	args := []string{"D0,x,y", "D1,x,z"}
-	queries := NewQueries(args)
-	assert.Equal(t, 2, len(queries))
-	assert.Equal(t, "D0", queries[0].Name)
-	assert.Equal(t, "D1", queries[1].Name)
-	columns := queries.Columns()
-	assert.Equal(t, 4, len(columns))
+	query := NewQuery(args, "sum", 10, 1)
+	assert.Equal(t, 10, query.Max)
+	assert.Equal(t, 1, query.Col)
+	assert.Exactly(t, query.Function, &Sum)
+	assert.Equal(t, 2, len(query.Datasets))
+	_, ok := query.datasets["D0"]
+	assert.True(t, ok)
+	_, ok = query.datasets["D1"]
+	assert.True(t, ok)
+	assert.Equal(t, "D0", query.Datasets[0])
+	assert.Equal(t, "D1", query.Datasets[1])
+	columns := query.Columns("D0")
+	assert.Equal(t, 2, len(columns))
 	assert.Equal(t, "x", columns[0])
 	assert.Equal(t, "y", columns[1])
-	assert.Equal(t, "x", columns[2])
-	assert.Equal(t, "z", columns[3])
-	assert.Equal(t, "q=D0%2Cx%2Cy&q=D1%2Cx%2Cz", queries.QueryStr())
+	columns = query.Columns("D1")
+	assert.Equal(t, 2, len(columns))
+	assert.Equal(t, "x", columns[0])
+	assert.Equal(t, "z", columns[1])
+	assert.Equal(t, "q=D0%2Cx%2Cy&q=D1%2Cx%2Cz", query.QueryStr())
 }
 
-func TestQueriesFromQS(t *testing.T) {
-	u, err := url.Parse("http://localhost?q=Fuu,x&q=Bar,y,z")
+func TestNewQueryFromQS(t *testing.T) {
+	u, err := url.Parse("http://localhost?q=Fuu,x&q=Bar,y,z&fn=sum&max=10&col=1")
 	assert.NoError(t, err)
-	queries := NewQueriesFromQS(u)
-	assert.Equal(t, 2, queries.Len())
-	columns := queries.Columns()
-	assert.Len(t, columns, 3)
+	query := NewQueryFromQS(u)
+	assert.Exactly(t, query.Function, &Sum)
+	assert.Equal(t, 2, query.Len())
+	assert.Equal(t, 1, query.Col)
+	assert.Equal(t, 10, query.Max)
+	columns := query.Columns("Fuu")
+	assert.Len(t, columns, 1)
 	assert.Equal(t, "x", columns[0])
-	assert.Equal(t, "y", columns[1])
-	assert.Equal(t, "z", columns[2])
+	columns = query.Columns("Bar")
+	assert.Len(t, columns, 2)
+	assert.Equal(t, "y", columns[0])
+	assert.Equal(t, "z", columns[1])
 }

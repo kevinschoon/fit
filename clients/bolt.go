@@ -2,6 +2,7 @@ package clients
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/boltdb/bolt"
 	mtx "github.com/gonum/matrix/mat64"
 	"github.com/kevinschoon/fit/types"
@@ -105,7 +106,7 @@ func (c *BoltClient) Delete(name string) error {
 // memory. The resulting dataset columns
 // will be ordered in the same order they
 // were queried for.
-func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
+func (c *BoltClient) Query(query *types.Query) (*types.Dataset, error) {
 	var (
 		rows  int            // Row count for new dataset
 		cols  int            // Col count for new dataset
@@ -121,13 +122,14 @@ func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
 	vectors := make([]*mtx.Vector, 0)
 	// Map of datasets already processed
 	processed := make(map[string]*types.Dataset)
-	// Range each query
-	for _, query := range queries {
+	// Range each dataset in the query
+	for _, name := range query.Datasets {
+		columns := query.Columns(name)
 		// Check to see if a query for this dataset
 		// has already been executed
-		if _, ok := processed[query.Name]; !ok {
+		if _, ok := processed[name]; !ok {
 			// Query for the other dataset
-			other, err := c.read(query.Name)
+			other, err := c.read(name)
 			if err != nil {
 				return nil, err
 			}
@@ -138,18 +140,20 @@ func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
 			rows += r
 			// Add this dataset to the map
 			// so it is not queried again
-			processed[query.Name] = other
+			processed[name] = other
 		}
 		// The other dataset we are querying
-		other = processed[query.Name]
+		other = processed[name]
 		// If this is a wild card search
 		// set query.columns to all columns
 		// in the current dataset
-		if query.All {
-			query.Columns = other.Columns
+		if len(columns) == 1 {
+			if columns[0] == "*" {
+				columns = other.Columns
+			}
 		}
 		// Range each column in the query
-		for _, name := range query.Columns {
+		for _, name := range columns {
 			// Get the position (index) of the column
 			pos := other.CPos(name)
 			// If the returned position is a negative
@@ -175,6 +179,12 @@ func (c *BoltClient) Query(queries types.Queries) (*types.Dataset, error) {
 				ds.Mtx.Set(i, j, vectors[j].At(i, 0))
 			} // Zeros are left for missing data
 		}
+	}
+	// If an aggregation function is specified
+	// with the query apply it to the dataset matrix
+	if query.Function != nil {
+		fmt.Println(query.Function, query.Max, query.Col)
+		ds.Mtx = types.Aggregate(query.Max, query.Col, *query.Function, ds.Mtx)
 	}
 	return ds, nil
 }

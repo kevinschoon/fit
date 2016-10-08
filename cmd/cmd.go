@@ -118,26 +118,29 @@ func Run() {
 		var (
 			queryArgs = cmd.StringsArg("QUERY", []string{}, "Query parameters")
 			lines     = cmd.IntOpt("n lines", 10, "number of rows to output")
+			aggr      = cmd.StringOpt("a aggregation", "", "aggregation function")
+			col       = cmd.IntOpt("c col", 0, "Column to aggregate on")
+			max       = cmd.IntOpt("m max", 0, "Maximum aggregation threshold")
 		)
 		cmd.LongDesc = `Query values from one or more stored datasets. Values from different 
 datasets can be joined together by specifying multiple query parameters.
 
 Example:
 
-fit query -n "Dataset1,fuu" "Dataset2,bar,baz"
+fit query -n 10 -a sum -c 0 -m 10 "Dataset1,fuu" "Dataset2,bar,baz"
 `
-		cmd.Spec = "[-n] QUERY..."
+		cmd.Spec = "[OPTIONS] QUERY..."
 		cmd.Action = func() {
 			if len(*queryArgs) == 0 {
 				cmd.PrintLongHelp()
 				os.Exit(1)
 			}
-			fmt.Println(*queryArgs)
-			ds, err := GetClient("").Query(types.NewQueries(*queryArgs))
+			ds, err := GetClient("").Query(types.NewQuery(*queryArgs, *aggr, *max, *col))
 			FailOnErr(err)
 			if ds.Len() > 0 {
 				switch {
 				case *asJSON:
+					ds.WithValues = true
 					raw, err := json.Marshal(ds)
 					FailOnErr(err)
 					fmt.Println(string(raw))
@@ -152,6 +155,5 @@ fit query -n "Dataset1,fuu" "Dataset2,bar,baz"
 			}
 		}
 	})
-
 	FailOnErr(app.Run(os.Args))
 }

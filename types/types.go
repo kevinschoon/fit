@@ -3,10 +3,12 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gonum/matrix"
 	mtx "github.com/gonum/matrix/mat64"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -22,7 +24,7 @@ type Client interface {
 	Datasets() ([]*Dataset, error)
 	Write(*Dataset) error
 	Delete(string) error
-	Query(Queries) (*Dataset, error)
+	Query(*Query) (*Dataset, error)
 }
 
 // Stats contain statistics about the
@@ -134,62 +136,103 @@ func (ds *Dataset) Next() ([]float64, error) {
 // of multiple datasets into a single
 // matrix of values
 type Query struct {
-	Name    string   // Dataset name
-	Columns []string // Column names
-	All     bool     // Return all columns
+	Datasets []string // Maintain order of dataset query
+	datasets map[string][]string
+	Function *Function
+	fnStr    string
+	Max      int
+	Col      int
 }
 
-type Queries []*Query
+// Len returns the length of the Query
+func (query Query) Len() int {
+	return len(query.Datasets)
+}
 
-func (queries Queries) Columns() []string {
-	columns := make([]string, 0)
-	for _, query := range queries {
-		for _, column := range query.Columns {
-			columns = append(columns, column)
+// Columns returns an ordered array of columns in the Query
+func (query Query) Columns(name string) []string {
+	result := make([]string, 0)
+	if columns, ok := query.datasets[name]; ok {
+		for _, column := range columns {
+			result = append(result, column)
 		}
 	}
-	return columns
+	return result
 }
 
-func (queries Queries) Len() int {
-	return len(queries)
+// ColumnsFlat returns all columns from the query
+func (query Query) ColumnsFlat() []string {
+	result := make([]string, 0)
+	for _, name := range query.Datasets {
+		for _, column := range query.datasets[name] {
+			result = append(result, column)
+		}
+	}
+	return result
 }
 
 // QueryStr returns a valid URL query string
-func (queries Queries) QueryStr() string {
+func (query Query) QueryStr() string {
 	values := url.Values{}
-	for _, query := range queries {
-		args := make([]string, len(query.Columns)+1)
-		args[0] = query.Name
-		for i := 0; i < len(query.Columns); i++ {
-			args[i+1] = query.Columns[i]
+	for _, name := range query.Datasets {
+		args := make([]string, len(query.datasets[name])+1)
+		args[0] = name
+		for i, column := range query.datasets[name] {
+			args[i+1] = column
 		}
 		values.Add("q", strings.TrimRight(strings.Join(args, ","), ","))
+	}
+	if query.Function != nil {
+		values.Add("fn", query.fnStr)
+		values.Add("max", fmt.Sprintf("%d", query.Max))
+		values.Add("col", fmt.Sprintf("%d", query.Col))
 	}
 	return values.Encode()
 }
 
-func NewQueries(args []string) Queries {
-	queries := make(Queries, len(args))
+// NewQuery constructs a Query from the provided
+// args and optionally specified function.
+// If function is specified the query returns
+// aggregated
+func NewQuery(args []string, function string, max, col int) *Query {
+	query := &Query{
+		Datasets: make([]string, len(args)),
+		datasets: make(map[string][]string),
+		Max:      max,
+		Col:      col,
+		fnStr:    function,
+	}
 	for i, arg := range args {
 		split := strings.Split(arg, ",")
 		if len(split) >= 1 {
-			queries[i] = &Query{Name: split[0]}
+			query.Datasets[i] = split[0]
+			query.datasets[split[0]] = []string{}
 		}
 		if len(split) > 1 {
-			if split[1] == "*" { // Wildcard for all columns
-				queries[i].All = true
-			}
-			queries[i].Columns = split[1:]
+			query.datasets[split[0]] = split[1:]
 		}
 	}
-	return queries
+	switch function {
+	case "sum":
+		query.Function = &Sum
+	case "min":
+		query.Function = &Min
+	case "max":
+		query.Function = &Max
+	case "avg":
+		query.Function = &Avg
+	}
+	return query
 }
 
-func NewQueriesFromQS(u *url.URL) Queries {
-	queries := Queries{}
-	if q, ok := u.Query()["q"]; ok {
-		queries = NewQueries(q)
+// NewQueryFromQS constructs a query from a url.URL
+func NewQueryFromQS(u *url.URL) *Query {
+	var args []string
+	query := u.Query()
+	if q, ok := query["q"]; ok {
+		args = q
 	}
-	return queries
+	max, _ := strconv.ParseInt(query.Get("max"), 0, 64)
+	col, _ := strconv.ParseInt(query.Get("col"), 0, 64)
+	return NewQuery(args, query.Get("fn"), int(max), int(col))
 }

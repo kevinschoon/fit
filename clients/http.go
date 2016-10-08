@@ -88,9 +88,9 @@ func (c *HTTPClient) Delete(name string) (err error) {
 	return err
 }
 
-func (c *HTTPClient) Query(queries types.Queries) (ds *types.Dataset, err error) {
+func (c *HTTPClient) Query(query *types.Query) (ds *types.Dataset, err error) {
 	u := c.url()
-	u.RawQuery = queries.QueryStr()
+	u.RawQuery = query.QueryStr()
 	raw, err := c.do(&http.Request{
 		URL:    u,
 		Method: "GET",
