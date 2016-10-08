@@ -2,7 +2,6 @@ package clients
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/boltdb/bolt"
 	mtx "github.com/gonum/matrix/mat64"
 	"github.com/kevinschoon/fit/types"
@@ -123,13 +122,14 @@ func (c *BoltClient) Query(query *types.Query) (*types.Dataset, error) {
 	// Map of datasets already processed
 	processed := make(map[string]*types.Dataset)
 	// Range each dataset in the query
-	for _, name := range query.Datasets {
-		columns := query.Columns(name)
+	for _, dataset := range query.Datasets {
+		columns := dataset.Columns
+		//columns := query.Columns(name)
 		// Check to see if a query for this dataset
 		// has already been executed
-		if _, ok := processed[name]; !ok {
+		if _, ok := processed[dataset.Name]; !ok {
 			// Query for the other dataset
-			other, err := c.read(name)
+			other, err := c.read(dataset.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -140,13 +140,13 @@ func (c *BoltClient) Query(query *types.Query) (*types.Dataset, error) {
 			rows += r
 			// Add this dataset to the map
 			// so it is not queried again
-			processed[name] = other
+			processed[dataset.Name] = other
 		}
 		// The other dataset we are querying
-		other = processed[name]
+		other = processed[dataset.Name]
 		// If this is a wild card search
-		// set query.columns to all columns
-		// in the current dataset
+		// set columns to equal all available
+		// columns in the dataset
 		if len(columns) == 1 {
 			if columns[0] == "*" {
 				columns = other.Columns
@@ -183,7 +183,6 @@ func (c *BoltClient) Query(query *types.Query) (*types.Dataset, error) {
 	// If an aggregation function is specified
 	// with the query apply it to the dataset matrix
 	if query.Function != nil {
-		fmt.Println(query.Function, query.Max, query.Col)
 		ds.Mtx = types.Aggregate(query.Max, query.Col, *query.Function, ds.Mtx)
 	}
 	return ds, nil

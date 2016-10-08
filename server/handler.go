@@ -51,7 +51,7 @@ func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
 		SecondaryColor: color.Black,
 		Width:          18 * vg.Inch,
 		Height:         5 * vg.Inch,
-		Columns:        types.NewQueryFromQS(r.URL).ColumnsFlat(),
+		Columns:        types.NewQueryFromQS(r.URL).Columns(),
 	}
 	if w, err := strconv.ParseInt(r.URL.Query().Get("width"), 0, 64); err == nil {
 		if w < 20 { // Prevent potentially horrible DOS

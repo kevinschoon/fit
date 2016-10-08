@@ -26,27 +26,19 @@ func TestDatasetJSON(t *testing.T) {
 }
 
 func TestNewQuery(t *testing.T) {
-	args := []string{"D0,x,y", "D1,x,z"}
+	args := []string{"D0,x,y", "D1,x,z", "D1,x"}
 	query := NewQuery(args, "sum", 10, 1)
 	assert.Equal(t, 10, query.Max)
 	assert.Equal(t, 1, query.Col)
 	assert.Exactly(t, query.Function, &Sum)
-	assert.Equal(t, 2, len(query.Datasets))
-	_, ok := query.datasets["D0"]
-	assert.True(t, ok)
-	_, ok = query.datasets["D1"]
-	assert.True(t, ok)
-	assert.Equal(t, "D0", query.Datasets[0])
-	assert.Equal(t, "D1", query.Datasets[1])
-	columns := query.Columns("D0")
-	assert.Equal(t, 2, len(columns))
-	assert.Equal(t, "x", columns[0])
-	assert.Equal(t, "y", columns[1])
-	columns = query.Columns("D1")
-	assert.Equal(t, 2, len(columns))
-	assert.Equal(t, "x", columns[0])
-	assert.Equal(t, "z", columns[1])
-	assert.Equal(t, "col=1&fn=sum&max=10&q=D0%2Cx%2Cy&q=D1%2Cx%2Cz", query.QueryStr())
+	assert.Equal(t, 3, query.Len())
+	assert.Equal(t, "D0", query.Datasets[0].Name)
+	assert.Len(t, query.Datasets[0].Columns, 2)
+	assert.Equal(t, "D1", query.Datasets[1].Name)
+	assert.Len(t, query.Datasets[1].Columns, 2)
+	assert.Equal(t, "D1", query.Datasets[1].Name)
+	assert.Len(t, query.Datasets[2].Columns, 1)
+	assert.Equal(t, "col=1&fn=sum&max=10&q=D0%2Cx%2Cy&q=D1%2Cx%2Cz&q=D1%2Cx", query.QueryStr())
 }
 
 func TestNewQueryFromQS(t *testing.T) {
@@ -57,11 +49,11 @@ func TestNewQueryFromQS(t *testing.T) {
 	assert.Equal(t, 2, query.Len())
 	assert.Equal(t, 1, query.Col)
 	assert.Equal(t, 10, query.Max)
-	columns := query.Columns("Fuu")
-	assert.Len(t, columns, 1)
-	assert.Equal(t, "x", columns[0])
-	columns = query.Columns("Bar")
-	assert.Len(t, columns, 2)
-	assert.Equal(t, "y", columns[0])
-	assert.Equal(t, "z", columns[1])
+	assert.Equal(t, "Fuu", query.Datasets[0].Name)
+	assert.Len(t, query.Datasets[0].Columns, 1)
+	assert.Equal(t, "x", query.Datasets[0].Columns[0])
+	assert.Equal(t, "Bar", query.Datasets[1].Name)
+	assert.Len(t, query.Datasets[1].Columns, 2)
+	assert.Equal(t, "y", query.Datasets[1].Columns[0])
+	assert.Equal(t, "z", query.Datasets[1].Columns[1])
 }

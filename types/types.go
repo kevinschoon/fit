@@ -136,12 +136,14 @@ func (ds *Dataset) Next() ([]float64, error) {
 // of multiple datasets into a single
 // matrix of values
 type Query struct {
-	Datasets []string // Maintain order of dataset query
-	datasets map[string][]string
-	Function *Function
-	fnStr    string
-	Max      int
-	Col      int
+	Datasets []struct {
+		Name    string   // Name of the dataset
+		Columns []string // Columns within the dataset to query
+	}
+	Function *Function // Aggregation Function
+	fnStr    string    // Function name
+	Max      int       // Maximum aggregation value
+	Col      int       // Column to aggregate on
 }
 
 // Len returns the length of the Query
@@ -149,35 +151,25 @@ func (query Query) Len() int {
 	return len(query.Datasets)
 }
 
-// Columns returns an ordered array of columns in the Query
-func (query Query) Columns(name string) []string {
-	result := make([]string, 0)
-	if columns, ok := query.datasets[name]; ok {
-		for _, column := range columns {
-			result = append(result, column)
+// Columns returns a flattened ordered
+// array of Column names
+func (query Query) Columns() []string {
+	columns := make([]string, 0)
+	for _, dataset := range query.Datasets {
+		for _, column := range dataset.Columns {
+			columns = append(columns, column)
 		}
 	}
-	return result
-}
-
-// ColumnsFlat returns all columns from the query
-func (query Query) ColumnsFlat() []string {
-	result := make([]string, 0)
-	for _, name := range query.Datasets {
-		for _, column := range query.datasets[name] {
-			result = append(result, column)
-		}
-	}
-	return result
+	return columns
 }
 
 // QueryStr returns a valid URL query string
 func (query Query) QueryStr() string {
 	values := url.Values{}
-	for _, name := range query.Datasets {
-		args := make([]string, len(query.datasets[name])+1)
-		args[0] = name
-		for i, column := range query.datasets[name] {
+	for _, dataset := range query.Datasets {
+		args := make([]string, len(dataset.Columns)+1)
+		args[0] = dataset.Name
+		for i, column := range dataset.Columns {
 			args[i+1] = column
 		}
 		values.Add("q", strings.TrimRight(strings.Join(args, ","), ","))
@@ -196,22 +188,25 @@ func (query Query) QueryStr() string {
 // aggregated
 func NewQuery(args []string, function string, max, col int) *Query {
 	query := &Query{
-		Datasets: make([]string, len(args)),
-		datasets: make(map[string][]string),
-		Max:      max,
-		Col:      col,
-		fnStr:    function,
+		Datasets: make([]struct {
+			Name    string
+			Columns []string
+		}, len(args)),
+		Max:   max,
+		Col:   col,
+		fnStr: function,
 	}
 	for i, arg := range args {
 		split := strings.Split(arg, ",")
 		if len(split) >= 1 {
-			query.Datasets[i] = split[0]
-			query.datasets[split[0]] = []string{}
+			query.Datasets[i].Name = split[0]
 		}
 		if len(split) > 1 {
-			query.datasets[split[0]] = split[1:]
+			query.Datasets[i].Columns = split[1:]
 		}
 	}
+	// If a valid function is specified we apply aggregation
+	// when the Query returns a result
 	switch function {
 	case "sum":
 		query.Function = &Sum
