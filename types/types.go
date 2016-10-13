@@ -3,13 +3,9 @@ package types
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/gonum/matrix"
 	mtx "github.com/gonum/matrix/mat64"
 	"io"
-	"net/url"
-	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -130,104 +126,4 @@ func (ds *Dataset) Next() ([]float64, error) {
 	rows := ds.Mtx.RawRowView(ds.index)
 	ds.index++
 	return rows, nil
-}
-
-// Query can be used to combine the results
-// of multiple datasets into a single
-// matrix of values
-type Query struct {
-	Datasets []struct {
-		Name    string   // Name of the dataset
-		Columns []string // Columns within the dataset to query
-	}
-	Function *Function // Aggregation Function
-	fnStr    string    // Function name
-	Max      int       // Maximum aggregation value
-	Col      int       // Column to aggregate on
-}
-
-// Len returns the length of the Query
-func (query Query) Len() int {
-	return len(query.Datasets)
-}
-
-// Columns returns a flattened ordered
-// array of Column names
-func (query Query) Columns() []string {
-	columns := make([]string, 0)
-	for _, dataset := range query.Datasets {
-		for _, column := range dataset.Columns {
-			columns = append(columns, column)
-		}
-	}
-	return columns
-}
-
-// QueryStr returns a valid URL query string
-func (query Query) QueryStr() string {
-	values := url.Values{}
-	for _, dataset := range query.Datasets {
-		args := make([]string, len(dataset.Columns)+1)
-		args[0] = dataset.Name
-		for i, column := range dataset.Columns {
-			args[i+1] = column
-		}
-		values.Add("q", strings.TrimRight(strings.Join(args, ","), ","))
-	}
-	if query.Function != nil {
-		values.Add("fn", query.fnStr)
-		values.Add("max", fmt.Sprintf("%d", query.Max))
-		values.Add("col", fmt.Sprintf("%d", query.Col))
-	}
-	return values.Encode()
-}
-
-// NewQuery constructs a Query from the provided
-// args and optionally specified function.
-// If function is specified the query returns
-// aggregated
-func NewQuery(args []string, function string, max, col int) *Query {
-	query := &Query{
-		Datasets: make([]struct {
-			Name    string
-			Columns []string
-		}, len(args)),
-		Max:   max,
-		Col:   col,
-		fnStr: function,
-	}
-	for i, arg := range args {
-		split := strings.Split(arg, ",")
-		if len(split) >= 1 {
-			query.Datasets[i].Name = split[0]
-		}
-		if len(split) > 1 {
-			query.Datasets[i].Columns = split[1:]
-		}
-	}
-	// If a valid function is specified we apply aggregation
-	// when the Query returns a result
-	switch function {
-	case "sum":
-		query.Function = &Sum
-	case "min":
-		query.Function = &Min
-	case "max":
-		query.Function = &Max
-	case "avg":
-		query.Function = &Avg
-	}
-	return query
-}
-
-// NewQueryFromQS constructs a query from a url.URL
-func NewQueryFromQS(u *url.URL) *Query {
-	var args []string
-	query := u.Query()
-	if q, ok := query["q"]; ok {
-		args = q
-	}
-	max, _ := strconv.ParseInt(query.Get("max"), 0, 64)
-	col, _ := strconv.ParseInt(query.Get("col"), 0, 64)
-	return NewQuery(args, query.Get("fn"), int(max), int(col))
 }

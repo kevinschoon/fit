@@ -41,7 +41,7 @@ func (handler Handler) response() *Response {
 }
 
 func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
-	ds, err := handler.db.Query(types.NewQueryFromQS(r.URL))
+	ds, err := handler.db.Query(types.NewQueryQS(r.URL))
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
 		SecondaryColor: color.Black,
 		Width:          18 * vg.Inch,
 		Height:         5 * vg.Inch,
-		Columns:        types.NewQueryFromQS(r.URL).Columns(),
+		Columns:        types.NewQueryQS(r.URL).Columns(),
 	}
 	if w, err := strconv.ParseInt(r.URL.Query().Get("width"), 0, 64); err == nil {
 		if w < 20 { // Prevent potentially horrible DOS
@@ -74,8 +74,7 @@ func (handler Handler) Chart(w http.ResponseWriter, r *http.Request) error {
 func (handler Handler) DatasetAPI(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case "GET":
-		query := types.NewQueryFromQS(r.URL)
-		fmt.Println(query.Col, query.Max, query.Function)
+		query := types.NewQueryQS(r.URL)
 		if query.Len() > 0 { // If URL contains a query return the query result
 			ds, err := handler.db.Query(query)
 			if err != nil {
@@ -151,7 +150,7 @@ func (handler Handler) Explore(w http.ResponseWriter, r *http.Request) error {
 		RawQuery: r.URL.Query().Encode(),
 	}
 	response.ChartURL = chartURL.String()
-	ds, err := handler.db.Query(types.NewQueryFromQS(r.URL))
+	ds, err := handler.db.Query(types.NewQueryQS(r.URL))
 	if err != nil {
 		return err
 	}

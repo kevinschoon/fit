@@ -180,11 +180,8 @@ func (c *BoltClient) Query(query *types.Query) (*types.Dataset, error) {
 			} // Zeros are left for missing data
 		}
 	}
-	// If an aggregation function is specified
-	// with the query apply it to the dataset matrix
-	if query.Function != nil {
-		ds.Mtx = types.Aggregate(query.Max, query.Col, *query.Function, ds.Mtx)
-	}
+	// Apply any other query options to the resulting dataset
+	ds.Mtx = query.Apply(ds.Mtx)
 	return ds, nil
 }
 

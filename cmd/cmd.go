@@ -118,16 +118,15 @@ func Run() {
 		var (
 			queryArgs = cmd.StringsArg("QUERY", []string{}, "Query parameters")
 			lines     = cmd.IntOpt("n lines", 10, "number of rows to output")
-			aggr      = cmd.StringOpt("a aggregation", "", "aggregation function")
-			col       = cmd.IntOpt("c col", 0, "Column to aggregate on")
-			max       = cmd.IntOpt("m max", 0, "Maximum aggregation threshold")
+			grouping  = cmd.StringOpt("g grouping", "", "grouping to apply to the resulting matrix")
+			function  = cmd.StringOpt("f function", "avg", "function to apply when grouping")
 		)
 		cmd.LongDesc = `Query values from one or more stored datasets. Values from different 
 datasets can be joined together by specifying multiple query parameters.
 
 Example:
 
-fit query -n 10 -a sum -c 0 -m 10 "Dataset1,fuu" "Dataset2,bar,baz"
+fit query -n 10 -g Duration,0,1m -f avg "Dataset1,fuu" "Dataset2,bar,baz"
 `
 		cmd.Spec = "[OPTIONS] QUERY..."
 		cmd.Action = func() {
@@ -135,7 +134,7 @@ fit query -n 10 -a sum -c 0 -m 10 "Dataset1,fuu" "Dataset2,bar,baz"
 				cmd.PrintLongHelp()
 				os.Exit(1)
 			}
-			ds, err := GetClient("").Query(types.NewQuery(*queryArgs, *aggr, *max, *col))
+			ds, err := GetClient("").Query(types.NewQuery(*queryArgs, *function, *grouping))
 			FailOnErr(err)
 			if ds.Len() > 0 {
 				switch {

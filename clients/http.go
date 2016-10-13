@@ -90,7 +90,7 @@ func (c *HTTPClient) Delete(name string) (err error) {
 
 func (c *HTTPClient) Query(query *types.Query) (ds *types.Dataset, err error) {
 	u := c.url()
-	u.RawQuery = query.QueryStr()
+	u.RawQuery = query.String()
 	raw, err := c.do(&http.Request{
 		URL:    u,
 		Method: "GET",
