@@ -41,7 +41,7 @@ func (c *HTTPClient) do(req *http.Request) ([]byte, error) {
 		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
-		log.Println("API Error: %d - %s", res.StatusCode, data)
+		log.Printf("API Error: %d - %s\n", res.StatusCode, data)
 		switch res.StatusCode {
 		case 404:
 			return nil, types.ErrNotFound
