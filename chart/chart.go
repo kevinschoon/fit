@@ -16,6 +16,7 @@ type Config struct {
 	XLabel         string
 	YLabel         string
 	Title          string
+	Type           string
 	Columns        []string
 	Width          vg.Length
 	Height         vg.Length
@@ -55,6 +56,7 @@ func getPlot(cfg Config) (*plot.Plot, error) {
 	plt.X.Tick.Color = cfg.PrimaryColor
 	plt.X.Tick.Label.Color = cfg.PrimaryColor
 	plt.X.Tick.Label.Font.Size = 0.2 * vg.Inch
+
 	if cfg.PlotTime {
 		plt.X.Tick.Marker = plot.UnixTimeTicks{Format: "2006-01-02"}
 	}
@@ -88,13 +90,39 @@ func GetLines(mx *mtx.Dense, columns []string) []interface{} {
 	return data
 }
 
+// GetValues returns an array of plotter.Values
+// where each entry is a column vector.
+func GetValues(mx *mtx.Dense) []plotter.Values {
+	_, c := mx.Dims()
+	values := make([]plotter.Values, c)
+	for i := 0; i < c; i++ {
+		values[i] = plotter.Values(mtx.Col(nil, i, mx))
+	}
+	return values
+}
+
 func New(cfg Config, mx *mtx.Dense) (vg.CanvasWriterTo, error) {
 	plt, err := getPlot(cfg)
 	if err != nil {
 		return nil, err
 	}
-	if err := plotutil.AddLines(plt, GetLines(mx, cfg.Columns)...); err != nil {
-		return nil, err
+	switch cfg.Type {
+	case "box":
+		values := GetValues(mx)
+		for i, vals := range values {
+			box, err := plotter.NewBoxPlot(vg.Points(20), float64(i), vals)
+			if err != nil {
+				return nil, err
+			}
+			box.WhiskerStyle.Color = cfg.PrimaryColor
+			box.BoxStyle.Color = cfg.PrimaryColor
+			box.MedianStyle.Color = cfg.PrimaryColor
+			plt.Add(box)
+		}
+	default: // Default to line chart
+		if err := plotutil.AddLines(plt, GetLines(mx, cfg.Columns)...); err != nil {
+			return nil, err
+		}
 	}
 	plt.Add(plotter.NewGrid())
 	canvas, err := draw.NewFormattedCanvas(cfg.Width, cfg.Height, "png")
