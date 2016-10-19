@@ -6,6 +6,7 @@ import (
 	"github.com/gonum/matrix"
 	mtx "github.com/gonum/matrix/mat64"
 	"io"
+	"math"
 	"sync"
 )
 
@@ -15,6 +16,31 @@ var (
 	ErrNotFound = errors.New("not found")
 	ErrBadQuery = errors.New("bad query")
 )
+
+// Work around for handling NaN values in JSON
+// https://github.com/golang/go/issues/3480
+type value float64
+
+func (v value) MarshalJSON() ([]byte, error) {
+	if math.IsNaN(float64(v)) {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(float64(v))
+}
+
+func (v *value) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, nil); err != nil {
+		val := float64(0.0)
+		if err := json.Unmarshal(data, &val); err == nil {
+			*v = value(val)
+		}
+	} else {
+		*v = value(math.NaN())
+	}
+	return nil
+}
+
+type values []value
 
 type Client interface {
 	Datasets() ([]*Dataset, error)
@@ -34,7 +60,7 @@ type dataset struct {
 	Name    string
 	Columns []string
 	Stats   *Stats
-	Mtx     []float64
+	Mtx     []value
 }
 
 // Dataset consists of a name and
@@ -57,7 +83,11 @@ func (ds *Dataset) MarshalJSON() ([]byte, error) {
 		Stats:   ds.Stats,
 	}
 	if ds.WithValues && ds.Mtx != nil {
-		out.Mtx = ds.Mtx.RawMatrix().Data
+		r, c := ds.Mtx.Dims()
+		out.Mtx = make([]value, r*c)
+		for i, val := range ds.Mtx.RawMatrix().Data {
+			out.Mtx[i] = value(val)
+		}
 	}
 	return json.Marshal(out)
 }
@@ -72,7 +102,11 @@ func (ds *Dataset) UnmarshalJSON(data []byte) error {
 	ds.Stats = in.Stats
 	return matrix.Maybe(func() {
 		if ds.WithValues && in.Mtx != nil {
-			ds.Mtx = mtx.NewDense(ds.Stats.Rows, ds.Stats.Columns, in.Mtx)
+			ds.Mtx = mtx.NewDense(ds.Stats.Rows, ds.Stats.Columns, nil)
+			values := make([]float64, ds.Stats.Rows*ds.Stats.Columns)
+			for i := 0; i < len(in.Mtx); i++ {
+				values[i] = float64(in.Mtx[i])
+			}
 		}
 	})
 }
