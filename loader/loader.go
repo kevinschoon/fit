@@ -4,110 +4,126 @@ import (
 	"errors"
 	"fmt"
 	mtx "github.com/gonum/matrix/mat64"
-	"github.com/kevinschoon/fit/loader/csv"
 	"github.com/kevinschoon/fit/parser"
 	"github.com/kevinschoon/fit/types"
 	"io"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 )
 
 var ErrUnequalValues = errors.New("unequal value size")
 
-type Encoding int
+type Rower interface {
+	Row() ([]string, error)
+	Dims() (int, int)
+}
 
-const (
-	NONE Encoding = iota
-	CSV
-	TCX
-	BYTES
-	JSON
-)
+type Options struct {
+	Name    string
+	Path    string
+	Enc     string
+	Columns []string
+	Sheet   string // Sheet name (XLS)
+	Size    int64  // File Size (XLS)
+	Parsers map[int]parser.Parser
+}
 
-// Filter transforms float64 values
-// if they meet a particular criteria
-type Filter func(float64) float64
-
-func Invalid(i float64) float64 {
-	switch {
-	case math.IsNaN(i):
-		return 0
-	case math.IsInf(i, 1):
-		return 0
-	case math.IsInf(i, -1):
-		return 0
+// Rower returns a Rower based on the configured options
+func (opts *Options) Rower(fp *os.File) (Rower, error) {
+	var split []string
+	if opts.Name == "" {
+		split = strings.Split(opts.Path, "/")
+		opts.Name = split[len(split)-1]
+		if strings.Contains(opts.Name, ".") {
+			opts.Name = strings.Split(opts.Name, ".")[0]
+		}
 	}
-	return i
+	if opts.Enc == "" {
+		split = strings.Split(opts.Path, "/")
+		split = strings.Split(split[len(split)-1], ".")
+		opts.Enc = split[len(split)-1]
+	}
+	switch {
+	case opts.Enc == "csv":
+		csv, err := NewCSV(fp)
+		if err != nil {
+			return nil, err
+		}
+		if len(opts.Columns) == 0 {
+			opts.Columns = csv.Columns
+		}
+		return csv, nil
+	case opts.Enc == "xls" || opts.Enc == "xlsx":
+		xls, err := NewXLS(fp, *opts)
+		if err != nil {
+			return nil, err
+		}
+		if len(opts.Columns) == 0 {
+			return nil, fmt.Errorf("Specify at least one column")
+		}
+		return xls, nil
+	}
+	panic(fmt.Sprintf("unknown encoding: %d", opts.Enc))
 }
 
-// Loader provides an iterative interface
-// for loading pairs of float64 values
-type Loader interface {
-	Next() ([]float64, error)
-	Columns() []string
-}
-
-func Load(loader Loader, filter Filter) (*mtx.Dense, error) {
-	var values []float64
-	var rows int
-	width := len(loader.Columns())
-	for {
-		v, err := loader.Next()
+func Matrix(rower Rower, parsers map[int]parser.Parser) (*mtx.Dense, error) {
+	r, c := rower.Dims()
+	mx := mtx.NewDense(r, c, nil)
+	for j := 0; j < r; j++ {
+		strs, err := rower.Row()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
-		if len(v) != width {
-			return nil, ErrUnequalValues
+		row := make([]float64, c)
+		for i, str := range strs {
+			if parser, ok := parsers[i]; ok {
+				if value, err := parser.Parse(str); err == nil {
+					row[i] = value
+					continue
+				}
+			}
+			if value, err := strconv.ParseFloat(str, 64); err == nil {
+				row[i] = value
+				continue
+			}
+			row[i] = math.NaN()
 		}
-		for _, value := range v {
-			values = append(values, filter(value))
-		}
-		rows++
+		mx.SetRow(j, row)
 	}
-	return mtx.NewDense(rows, width, values), nil
+	return mx, nil
 }
 
-func ReadPath(name, path string, enc Encoding, parsers map[int]parser.Parser) (*types.Dataset, error) {
+func ReadPath(opts Options) (*types.Dataset, error) {
 	var (
-		loader Loader
-		mx     *mtx.Dense
+		rower Rower
+		mx    *mtx.Dense
 	)
-	if name == "" {
-		split := strings.Split(path, "/")
-		name = split[len(split)-1]
+	fp, err := os.Open(opts.Path)
+	if err != nil {
+		return nil, err
 	}
-	if enc == NONE {
-		split := strings.Split(path, ".")
-		switch split[len(split)-1] {
-		case "csv":
-			enc = CSV
-		}
-	}
-	fp, err := os.Open(path)
+	stats, err := fp.Stat()
 	if err != nil {
 		return nil, err
 	}
 	defer fp.Close()
-	switch enc {
-	case CSV:
-		loader, err = csv.New(fp, parsers)
-		if err != nil {
-			return nil, err
-		}
-		mx, err = Load(loader, Invalid)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		panic(fmt.Sprintf("unknown encoding: %d", enc))
+	opts.Size = stats.Size()
+	rower, err = opts.Rower(fp)
+	if err != nil {
+		return nil, err
+	}
+	mx, err = Matrix(rower, opts.Parsers)
+	if err != nil {
+		return nil, err
 	}
 	return &types.Dataset{
-		Name:    name,
-		Columns: loader.Columns(),
+		Name:    opts.Name,
+		Columns: opts.Columns,
 		Mtx:     mx,
 	}, nil
 }

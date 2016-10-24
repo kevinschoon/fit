@@ -6,6 +6,7 @@ import (
 	mtx "github.com/gonum/matrix/mat64"
 	"github.com/gosuri/uitable"
 	"github.com/jawher/mow.cli"
+
 	"github.com/kevinschoon/fit/clients"
 	"github.com/kevinschoon/fit/loader"
 	"github.com/kevinschoon/fit/parser"
@@ -68,16 +69,25 @@ func Run() {
 	})
 
 	app.Command("load", "load a dataset into BoltDB", func(cmd *cli.Cmd) {
-		cmd.Spec = "[-n][-p...] PATH"
+		cmd.Spec = "[[-n] [-s]][-p...][-c...] PATH"
 		var (
-			name    = cmd.StringOpt("n name", "", "name of this dataset")
-			path    = cmd.StringArg("PATH", "", "File path")
-			parsers = cmd.StringsOpt("p parser", []string{}, "parsers to apply")
+			name       = cmd.StringOpt("n name", "", "name of this dataset")
+			path       = cmd.StringArg("PATH", "", "File path")
+			parserArgs = cmd.StringsOpt("p parser", []string{}, "parsers to apply")
+			sheet      = cmd.StringOpt("s sheet", "", "name of the sheet to load with XLS file")
+			columns    = cmd.StringsOpt("c column", []string{}, "column names")
 		)
 		cmd.Action = func() {
-			p, err := parser.ParsersFromArgs(*parsers)
+			parsers, err := parser.ParsersFromArgs(*parserArgs)
 			FailOnErr(err)
-			ds, err := loader.ReadPath(*name, *path, loader.NONE, p)
+			opts := loader.Options{
+				Name:    *name,
+				Path:    *path,
+				Parsers: parsers,
+				Columns: *columns,
+				Sheet:   *sheet,
+			}
+			ds, err := loader.ReadPath(opts)
 			FailOnErr(err)
 			FailOnErr(GetClient("").Write(ds))
 		}
