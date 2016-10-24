@@ -102,11 +102,11 @@ func (ds *Dataset) UnmarshalJSON(data []byte) error {
 	ds.Stats = in.Stats
 	return matrix.Maybe(func() {
 		if ds.WithValues && in.Mtx != nil {
-			ds.Mtx = mtx.NewDense(ds.Stats.Rows, ds.Stats.Columns, nil)
 			values := make([]float64, ds.Stats.Rows*ds.Stats.Columns)
 			for i := 0; i < len(in.Mtx); i++ {
 				values[i] = float64(in.Mtx[i])
 			}
+			ds.Mtx = mtx.NewDense(ds.Stats.Rows, ds.Stats.Columns, values)
 		}
 	})
 }
