@@ -1,0 +1,10 @@
+Truncate column names
+Remove extension from default name
+Handle missing query values (no panic)
+Add ability to rename columns
+Fix errors with large datasets
+Support arbitrary JSON
+Catch matrix panic
+Add ability to "discover" time fields
+Add new chart types
+Add SQL backend
