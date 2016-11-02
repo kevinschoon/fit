@@ -66,13 +66,14 @@ type dataset struct {
 // Dataset consists of a name and
 // an ordered array of column names
 type Dataset struct {
+	Id         int
 	Name       string     // Name of this dataset
 	Columns    []string   // Ordered array of cols
 	Mtx        *mtx.Dense `json:"-"` // Dense Matrix contains all values in the dataset
 	Stats      *Stats
 	lock       sync.RWMutex
 	index      int
-	WithValues bool
+	WithValues bool `json:"-"`
 }
 
 func (ds *Dataset) MarshalJSON() ([]byte, error) {

@@ -6,6 +6,16 @@ import (
 	"strings"
 )
 
+// Query consists of a SQL statement
+// and named parameters.
+type SQLQuery struct {
+	Datasets []struct {
+		Name   string
+		SQL    string
+		Params []string
+	}
+}
+
 // Query can be used to combine the results
 // of multiple datasets into a single
 // matrix of values. Queries can originate
