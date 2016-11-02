@@ -1,3 +1,5 @@
+<img width="100px" src="https://raw.githubusercontent.com/kevinschoon/fit/master/www/images/gopher-fit.png" alt="fit"/>
+
 ### Fit
 
 Fit is a toolkit for exploring and manipulating datasets. Go has [many](https://github.com/gonum) [great](https://github.com/montanaflynn/stats) 
